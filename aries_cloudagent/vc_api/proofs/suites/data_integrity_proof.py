@@ -8,7 +8,6 @@ from typing_extensions import TypedDict
 
 from ..check import get_properties_without_context
 from ..constants import SECURITY_CONTEXT_URL
-from ..document_loader import DocumentLoaderMethod
 from ..error import DataIntegrityProofException
 from ..purposes import _ProofPurpose as ProofPurpose
 from ..validation_result import ProofResult
@@ -41,7 +40,6 @@ class DataIntegrityProof(ABC):
         *,
         document: dict,
         purpose: ProofPurpose,
-        document_loader: DocumentLoaderMethod,
     ) -> dict:
         """Create proof for document.
 
@@ -64,7 +62,6 @@ class DataIntegrityProof(ABC):
         proof: dict,
         document: dict,
         purpose: ProofPurpose,
-        document_loader: DocumentLoaderMethod,
     ) -> ProofResult:
         """Verify proof against document and proof purpose.
 
@@ -88,7 +85,6 @@ class DataIntegrityProof(ABC):
         proof: dict,
         document: dict,
         reveal_document: dict,
-        document_loader: DocumentLoaderMethod,
         nonce: Optional[bytes] = None,
     ) -> DeriveProofResult:
         """Derive proof for document, returning derived document and proof.
@@ -108,29 +104,23 @@ class DataIntegrityProof(ABC):
             f"{self.signature_type} signature suite does not support deriving proofs"
         )
 
-    def _canonize(self, *, input, document_loader: DocumentLoaderMethod) -> str:
+    def _canonize(self, *, input) -> str:
         """Canonize input document using URDNA2015 algorithm."""
         # application/n-quads format always returns str
-        missing_properties = get_properties_without_context(input, document_loader)
+        missing_properties = get_properties_without_context(input)
 
         if len(missing_properties) > 0:
             raise DataIntegrityProofException(
                 f"{len(missing_properties)} attributes dropped. "
                 f"Provide definitions in context to correct. {missing_properties}"
             )
-
+        jsonld.set_document_loader(jsonld.aiohttp_document_loader(timeout=100))
         return jsonld.normalize(
             input,
-            {
-                "algorithm": "URDNA2015",
-                "format": "application/n-quads",
-                "documentLoader": document_loader,
-            },
+            {"algorithm": "URDNA2015", "format": "application/n-quads"},
         )
 
-    def _get_verification_method(
-        self, *, proof: dict, document_loader: DocumentLoaderMethod
-    ) -> dict:
+    def _get_verification_method(self, *, proof: dict) -> dict:
         """Get verification method for proof."""
 
         verification_method = proof.get("verificationMethod")
@@ -142,6 +132,7 @@ class DataIntegrityProof(ABC):
             raise DataIntegrityProofException('No "verificationMethod" found in proof')
 
         # TODO: This should optionally use the context of the document?
+        jsonld.set_document_loader(jsonld.aiohttp_document_loader(timeout=100))
         framed = jsonld.frame(
             verification_method,
             frame={
@@ -150,7 +141,7 @@ class DataIntegrityProof(ABC):
                 "id": verification_method,
             },
             options={
-                "documentLoader": document_loader,
+                # "documentLoader": document_loader,
                 "expandContext": SECURITY_CONTEXT_URL,
                 # if we don't set base explicitly it will remove the base in returned
                 # document (e.g. use key:z... instead of did:key:z...)

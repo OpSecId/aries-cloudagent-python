@@ -5,8 +5,8 @@ from typing import List, Optional
 from marshmallow import fields
 
 from ...messaging.models.base import BaseModel, BaseModelSchema
-from ..di_proofs.validation_result import DocumentVerificationResultSchema
-from ..di_proofs import DocumentVerificationResult
+from ..proofs.validation_result import DocumentVerificationResultSchema
+from ..proofs import DocumentVerificationResult
 
 
 class PresentationVerificationResult(BaseModel):

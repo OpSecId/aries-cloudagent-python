@@ -5,7 +5,6 @@ from typing import Optional, Union, List
 
 from ....utils.multiformats import multibase
 from ..keys import _KeyPair as KeyPair
-from ..document_loader import DocumentLoaderMethod
 from ..error import DataIntegrityProofException
 from .data_integrity_signature import DataIntegritySignature
 
@@ -64,7 +63,6 @@ class Ed25519Signature2020(DataIntegritySignature):
         verification_method: dict,
         document: dict,
         proof: dict,
-        document_loader: DocumentLoaderMethod,
     ) -> bool:
         """Verify the data against the proof.
 

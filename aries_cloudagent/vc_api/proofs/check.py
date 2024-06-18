@@ -4,15 +4,11 @@ from typing import Sequence, Tuple, Union
 from pyld import jsonld
 
 
-from .document_loader import DocumentLoaderMethod
-
-
 def diff_dict_keys(
     full: dict,
     with_missing: dict,
     prefix: str = None,
     *,
-    document_loader: DocumentLoaderMethod,
     context,
 ) -> Sequence[str]:
     """Get the difference in dict keys between full and with_missing.
@@ -63,9 +59,10 @@ def diff_dict_keys(
             elif full.get("@type"):
                 doc["@type"] = full.get("@type")
 
+            jsonld.set_document_loader(jsonld.aiohttp_document_loader(timeout=100))
             expanded = jsonld.expand(
                 doc,
-                {"documentLoader": document_loader},
+                # {"documentLoader": document_loader},
             )
 
             if len(expanded) > 0:
@@ -89,7 +86,6 @@ def diff_dict_keys(
                     value,
                     with_missing.get(key_in_with_missing),
                     prefix=_prefix,
-                    document_loader=document_loader,
                     context=context,
                 )
             )
@@ -115,7 +111,6 @@ def diff_dict_keys(
                             nested_value,
                             nested_with_missing,
                             prefix=__prefix,
-                            document_loader=document_loader,
                             context=context,
                         )
                     )
@@ -123,9 +118,7 @@ def diff_dict_keys(
     return missing
 
 
-def get_properties_without_context(
-    document: dict, document_loader: DocumentLoaderMethod
-) -> Sequence[str]:
+def get_properties_without_context(document: dict) -> Sequence[str]:
     """Get the properties from document that don't have an context definition."""
     # FIXME: this doesn't work with nested @context structures...
     if "verifiableCredential" in document:
@@ -134,14 +127,13 @@ def get_properties_without_context(
     document = document.copy()
 
     # Removes unknown keys from object
+    jsonld.set_document_loader(jsonld.aiohttp_document_loader(timeout=100))
     compact = jsonld.compact(
         document,
         document["@context"],
-        {"documentLoader": document_loader},
+        # {"documentLoader": document_loader},
     )
 
-    missing = diff_dict_keys(
-        document, compact, document_loader=document_loader, context=document["@context"]
-    )
+    missing = diff_dict_keys(document, compact, context=document["@context"])
 
     return missing

@@ -5,12 +5,11 @@ from typing import TYPE_CHECKING, Optional
 
 from ....messaging.util import str_to_datetime
 
-from ..document_loader import DocumentLoaderMethod
 from ..validation_result import PurposeResult
 
 # Avoid circular dependency
 if TYPE_CHECKING:
-    from ..cryptosuites import DataIntegrityProof
+    from ..suites import DataIntegrityProof
 
 
 class ProofPurpose:
@@ -35,7 +34,6 @@ class ProofPurpose:
         document: dict,
         suite: "DataIntegrityProof",
         verification_method: dict,
-        document_loader: DocumentLoaderMethod,
     ) -> PurposeResult:
         """Validate whether created date of proof is out of max_timestamp_delta range."""
         try:

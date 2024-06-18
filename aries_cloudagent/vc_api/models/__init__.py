@@ -1,4 +1,4 @@
-from .credential import VerifiableCredential, CredentialV2Schema
+from .credential import VerifiableCredential, CredentialSchema
 from .presentation import VerifiablePresentation
 from .data_integrity_proof import DataIntegrityProof
 from .options import IssuanceOptions
@@ -8,5 +8,5 @@ __all__ = [
     "VerifiableCredential",
     "DataIntegrityProof",
     "IssuanceOptions",
-    "CredentialV2Schema",
+    "CredentialSchema",
 ]

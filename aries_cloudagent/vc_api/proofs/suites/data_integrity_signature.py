@@ -8,7 +8,6 @@ from typing import Optional, Union
 from dateutil import tz
 
 from ..constants import SECURITY_CONTEXT_URL
-from ..document_loader import DocumentLoaderMethod
 from ..error import DataIntegrityProofException
 from ..purposes import _ProofPurpose as ProofPurpose
 from ..validation_result import ProofResult
@@ -64,7 +63,6 @@ class DataIntegritySignature(DataIntegrityProof, metaclass=ABCMeta):
         verification_method: dict,
         document: dict,
         proof: dict,
-        document_loader: DocumentLoaderMethod,
     ) -> bool:
         """Verify the data against the proof.
 
@@ -85,7 +83,6 @@ class DataIntegritySignature(DataIntegrityProof, metaclass=ABCMeta):
         *,
         document: dict,
         purpose: ProofPurpose,
-        document_loader: DocumentLoaderMethod,
     ) -> dict:
         """Create proof for document, return proof."""
         proof = self.proof.copy() if self.proof else {}
@@ -108,9 +105,7 @@ class DataIntegritySignature(DataIntegrityProof, metaclass=ABCMeta):
         proof = purpose.update(proof)
 
         # Create data to sign
-        verify_data = self._create_verify_data(
-            proof=proof, document=document, document_loader=document_loader
-        )
+        verify_data = self._create_verify_data(proof=proof, document=document)
 
         # Sign data
         proof = await self.sign(verify_data=verify_data, proof=proof)
@@ -123,19 +118,14 @@ class DataIntegritySignature(DataIntegrityProof, metaclass=ABCMeta):
         proof: dict,
         document: dict,
         purpose: ProofPurpose,
-        document_loader: DocumentLoaderMethod,
     ) -> ProofResult:
         """Verify proof against document and proof purpose."""
         try:
             # Create data to verify
-            verify_data = self._create_verify_data(
-                proof=proof, document=document, document_loader=document_loader
-            )
+            verify_data = self._create_verify_data(proof=proof, document=document)
 
             # Fetch verification method
-            verification_method = self._get_verification_method(
-                proof=proof, document_loader=document_loader
-            )
+            verification_method = self._get_verification_method(proof=proof)
 
             # Verify signature on data
             verified = await self.verify_signature(
@@ -143,7 +133,6 @@ class DataIntegritySignature(DataIntegrityProof, metaclass=ABCMeta):
                 verification_method=verification_method,
                 document=document,
                 proof=proof,
-                document_loader=document_loader,
             )
             if not verified:
                 raise DataIntegrityProofException(
@@ -156,7 +145,6 @@ class DataIntegritySignature(DataIntegrityProof, metaclass=ABCMeta):
                 document=document,
                 suite=self,
                 verification_method=verification_method,
-                document_loader=document_loader,
             )
 
             if not purpose_result.valid:
@@ -170,14 +158,10 @@ class DataIntegritySignature(DataIntegrityProof, metaclass=ABCMeta):
         except Exception as err:
             return ProofResult(verified=False, error=err)
 
-    def _create_verify_data(
-        self, *, proof: dict, document: dict, document_loader: DocumentLoaderMethod
-    ) -> bytes:
+    def _create_verify_data(self, *, proof: dict, document: dict) -> bytes:
         """Create signing or verification data."""
-        c14n_proof_options = self._canonize_proof(
-            proof=proof, document=document, document_loader=document_loader
-        )
-        c14n_doc = self._canonize(input=document, document_loader=document_loader)
+        c14n_proof_options = self._canonize_proof(proof=proof, document=document)
+        c14n_doc = self._canonize(input=document)
 
         # TODO: detect any dropped properties using expand/contract step
 
@@ -186,9 +170,7 @@ class DataIntegritySignature(DataIntegrityProof, metaclass=ABCMeta):
             + sha256(c14n_doc.encode("utf-8")).digest()
         )
 
-    def _canonize_proof(
-        self, *, proof: dict, document: dict, document_loader: DocumentLoaderMethod
-    ):
+    def _canonize_proof(self, *, proof: dict, document: dict):
         """Canonize proof dictionary. Removes jws, signature, etc..."""
         # Use default security context url if document has no context
         proof = {
@@ -200,4 +182,4 @@ class DataIntegritySignature(DataIntegrityProof, metaclass=ABCMeta):
         proof.pop("signatureValue", None)
         proof.pop("proofValue", None)
 
-        return self._canonize(input=proof, document_loader=document_loader)
+        return self._canonize(input=proof)

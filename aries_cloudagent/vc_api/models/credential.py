@@ -8,8 +8,9 @@ from marshmallow import INCLUDE, ValidationError, fields, post_dump
 
 from ...messaging.models.base import BaseModel, BaseModelSchema
 from ...messaging.valid import (
-    CREDENTIAL_CONTEXT_EXAMPLE,
-    CREDENTIAL_CONTEXT_VALIDATE,
+    CREDENTIAL_V2_CONTEXT_EXAMPLE,
+    UUID4_EXAMPLE,
+    CREDENTIAL_V2_CONTEXT_VALIDATE,
     CREDENTIAL_STATUS_EXAMPLE,
     CREDENTIAL_STATUS_VALIDATE,
     CREDENTIAL_SUBJECT_EXAMPLE,
@@ -24,11 +25,10 @@ from ...messaging.valid import (
     Uri,
     UriOrDictField,
 )
-from ..di_proofs.constants import (
-    CREDENTIALS_CONTEXT_V2_URL,
+from ..proofs.constants import (
     VERIFIABLE_CREDENTIAL_TYPE,
 )
-from .data_integrity_proof import DIProof, DataIntegrityProofSchema
+from .data_integrity_proof import DataIntegrityProof, DataIntegrityProofSchema
 
 
 class VerifiableCredential(BaseModel):
@@ -49,11 +49,11 @@ class VerifiableCredential(BaseModel):
         valid_until: Optional[str] = None,
         credential_subject: Optional[Union[dict, List[dict]]] = None,
         credential_status: Optional[Union[dict, List[dict]]] = None,
-        proof: Optional[Union[dict, DIProof]] = None,
+        proof: Optional[Union[dict, DataIntegrityProof]] = None,
         **kwargs,
     ) -> None:
         """Initialize the VerifiableCredential instance."""
-        self._context = context or [CREDENTIALS_CONTEXT_V2_URL]
+        self._context = context or [CREDENTIAL_V2_CONTEXT_EXAMPLE]
         self._id = id
         self._type = type or [VERIFIABLE_CREDENTIAL_TYPE]
         self._issuer = issuer
@@ -79,7 +79,7 @@ class VerifiableCredential(BaseModel):
 
         First item must be credentials v1 url
         """
-        assert context[0] == CREDENTIALS_CONTEXT_V2_URL
+        assert context[0] == CREDENTIAL_V2_CONTEXT_EXAMPLE
 
         self._context = context
 
@@ -246,7 +246,7 @@ class VerifiableCredential(BaseModel):
         return self._proof
 
     @proof.setter
-    def proof(self, proof: DIProof):
+    def proof(self, proof: DataIntegrityProof):
         """Setter for proof."""
         self._proof = proof
 
@@ -269,7 +269,7 @@ class VerifiableCredential(BaseModel):
         return False
 
 
-class CredentialV2Schema(BaseModelSchema):
+class CredentialSchema(BaseModelSchema):
     """Linked data credential schema.
 
     Based on https://www.w3.org/TR/vc-data-model
@@ -286,10 +286,10 @@ class CredentialV2Schema(BaseModelSchema):
         UriOrDictField(required=True),
         data_key="@context",
         required=True,
-        validate=CREDENTIAL_CONTEXT_VALIDATE,
+        validate=CREDENTIAL_V2_CONTEXT_VALIDATE,
         metadata={
             "description": "The JSON-LD context of the credential",
-            "example": CREDENTIAL_CONTEXT_EXAMPLE,
+            "example": ["https://www.w3.org/ns/credentials/v2"],
         },
     )
 
@@ -298,7 +298,7 @@ class CredentialV2Schema(BaseModelSchema):
         validate=Uri(),
         metadata={
             "description": "The ID of the credential",
-            "example": "http://example.edu/credentials/1872",
+            "example": f"urn:uuid:{UUID4_EXAMPLE}",
         },
     )
 
@@ -308,7 +308,7 @@ class CredentialV2Schema(BaseModelSchema):
         validate=CREDENTIAL_TYPE_VALIDATE,
         metadata={
             "description": "The JSON-LD type of the credential",
-            "example": CREDENTIAL_TYPE_EXAMPLE,
+            "example": ["VerifiableCredential"],
         },
     )
 
@@ -347,7 +347,7 @@ class CredentialV2Schema(BaseModelSchema):
         required=True,
         data_key="credentialSubject",
         validate=CREDENTIAL_SUBJECT_VALIDATE,
-        metadata={"example": CREDENTIAL_SUBJECT_EXAMPLE},
+        metadata={"example": {"id": f"{DIDKey.EXAMPLE}"}},
     )
 
     credential_status = DictOrDictListField(
@@ -356,6 +356,22 @@ class CredentialV2Schema(BaseModelSchema):
         validate=CREDENTIAL_STATUS_VALIDATE,
         metadata={"example": CREDENTIAL_STATUS_EXAMPLE},
     )
+
+    @post_dump(pass_original=True)
+    def add_unknown_properties(self, data: dict, original, **kwargs):
+        """Add back unknown properties before outputting."""
+
+        data.update(original.extra)
+
+        return data
+
+
+class VerifiableCredentialSchema(CredentialSchema):
+    """Data integrity verifiable credential schema.
+
+    Based on https://www.w3.org/TR/vc-data-model
+
+    """
 
     proof = fields.Nested(
         DataIntegrityProofSchema(),
@@ -368,43 +384,6 @@ class CredentialV2Schema(BaseModelSchema):
                 "created": "2019-12-11T03:50:55",
                 "proofPurpose": "assertionMethod",
                 "proofValue": (
-                    "eyJhbGciOiAiRWREU0EiLCAiYjY0IjogZmFsc2UsICJjcml0JiNjQiXX0..lKJU0Df_k"
-                    "eblRKhZAS9Qq6zybm-HqUXNVZ8vgEPNTAjQKBhQDxvXNo7nvtUBb_Eq1Ch6YBKY5qBQ"
-                ),
-            },
-        },
-    )
-
-    @post_dump(pass_original=True)
-    def add_unknown_properties(self, data: dict, original, **kwargs):
-        """Add back unknown properties before outputting."""
-
-        data.update(original.extra)
-
-        return data
-
-
-class VerifiableCredentialSchema(CredentialV2Schema):
-    """Data integrity verifiable credential schema.
-
-    Based on https://www.w3.org/TR/vc-data-model
-
-    """
-
-    proof = fields.Nested(
-        DataIntegrityProofSchema(),
-        required=True,
-        metadata={
-            "description": "The proof of the credential",
-            "example": {
-                "type": "Ed25519Signature2018",
-                "verificationMethod": (
-                    "did:key:z6Mkgg342Ycpuk263R9d8Aq6MUaxPn1DDeHyGo38Ee"
-                    "fXmgDL#z6Mkgg342Ycpuk263R9d8Aq6MUaxPn1DDeHyGo38EefXmgDL"
-                ),
-                "created": "2019-12-11T03:50:55",
-                "proofPurpose": "assertionMethod",
-                "jws": (
                     "eyJhbGciOiAiRWREU0EiLCAiYjY0IjogZmFsc2UsICJjcml0JiNjQiXX0..lKJU0Df_k"
                     "eblRKhZAS9Qq6zybm-HqUXNVZ8vgEPNTAjQKBhQDxvXNo7nvtUBb_Eq1Ch6YBKY5qBQ"
                 ),

@@ -13,11 +13,11 @@ from ...messaging.valid import (
     Uri,
     UriOrDictField,
 )
-from ..di_proofs.constants import (
+from ..proofs.constants import (
     CREDENTIALS_CONTEXT_V1_URL,
     VERIFIABLE_PRESENTATION_TYPE,
 )
-from .data_integrity_proof import DIProof, DataIntegrityProofSchema
+from .data_integrity_proof import DataIntegrityProof, DataIntegrityProofSchema
 
 
 class VerifiablePresentation(BaseModel):
@@ -35,7 +35,7 @@ class VerifiablePresentation(BaseModel):
         type: Optional[List[str]] = None,
         holder: Optional[Union[dict, str]] = None,
         verifiable_credential: Optional[List[dict]] = None,
-        proof: Optional[Union[dict, DIProof]] = None,
+        proof: Optional[Union[dict, DataIntegrityProof]] = None,
         **kwargs,
     ) -> None:
         """Initialize VerifiablePresentation."""
@@ -163,7 +163,7 @@ class VerifiablePresentation(BaseModel):
         return self._proof
 
     @proof.setter
-    def proof(self, proof: DIProof):
+    def proof(self, proof: DataIntegrityProof):
         """Setter for proof."""
         self._proof = proof
 

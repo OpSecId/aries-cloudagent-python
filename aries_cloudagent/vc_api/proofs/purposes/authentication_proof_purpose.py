@@ -3,7 +3,6 @@
 from datetime import datetime, timedelta
 from typing import TYPE_CHECKING, Optional
 
-from ..document_loader import DocumentLoaderMethod
 from ..error import DataIntegrityProofException
 from ..validation_result import PurposeResult
 
@@ -11,7 +10,7 @@ from .controller_proof_purpose import ControllerProofPurpose
 
 # Avoid circular dependency
 if TYPE_CHECKING:
-    from ..cryptosuites import DataIntegrityProof
+    from ..suites import DataIntegrityProof
 
 
 class AuthenticationProofPurpose(ControllerProofPurpose):
@@ -44,7 +43,6 @@ class AuthenticationProofPurpose(ControllerProofPurpose):
         document: dict,
         suite: "DataIntegrityProof",
         verification_method: dict,
-        document_loader: DocumentLoaderMethod,
     ) -> PurposeResult:
         """Validate whether challenge and domain are valid."""
         try:
@@ -65,7 +63,6 @@ class AuthenticationProofPurpose(ControllerProofPurpose):
                 document=document,
                 suite=suite,
                 verification_method=verification_method,
-                document_loader=document_loader,
             )
         except Exception as e:
             return PurposeResult(valid=False, error=str(e))

@@ -14,10 +14,6 @@ from .keys import (
     _KeyPair as KeyPair,
     _WalletKeyPair as WalletKeyPair,
 )
-from .document_loader import (
-    DocumentLoader,
-    DocumentLoaderMethod,
-)
 from .error import DataIntegrityProofException
 from .validation_result import DocumentVerificationResult, ProofResult, PurposeResult
 from .check import get_properties_without_context
@@ -36,9 +32,6 @@ __all__ = [
     # Key pairs
     "KeyPair",
     "WalletKeyPair",
-    # Document Loaders
-    "DocumentLoaderMethod",
-    "DocumentLoader",
     # Exceptions
     "DataIntegrityProofException",
     # Validation results

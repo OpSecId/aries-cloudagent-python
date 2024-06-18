@@ -5,8 +5,16 @@ from ..core.profile import Profile
 
 async def setup(context: InjectionContext):
     """Setup vc plugin."""
-    from .service import VcApiService
+    from .services import IssuerService, VerifierService, HolderService
 
     context.injector.bind_provider(
-        VcApiService, ClassProvider(VcApiService, ClassProvider.Inject(Profile))
+        IssuerService, ClassProvider(IssuerService, ClassProvider.Inject(Profile))
+    )
+
+    context.injector.bind_provider(
+        VerifierService, ClassProvider(VerifierService, ClassProvider.Inject(Profile))
+    )
+
+    context.injector.bind_provider(
+        HolderService, ClassProvider(HolderService, ClassProvider.Inject(Profile))
     )

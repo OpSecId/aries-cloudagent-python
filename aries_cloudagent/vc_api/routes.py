@@ -11,7 +11,7 @@ from ..config.base import InjectionError
 from ..resolver.base import ResolverError
 from ..storage.error import StorageDuplicateError, StorageError, StorageNotFoundError
 from ..wallet.error import WalletError
-from .service import VcApiService, VcApiServiceError
+from .services import IssuerService, VerifierService, HolderService, ServiceError
 from .models import web_schemas
 
 
@@ -22,7 +22,7 @@ async def list_credentials_route(request: web.BaseRequest):
 
     context: AdminRequestContext = request["context"]
     try:
-        records = await VcApiService(context.profile).get_credentials()
+        records = await HolderService(context.profile).get_credentials()
         return web.json_response(records, status=200)
     except (StorageError, StorageNotFoundError) as err:
         return web.json_response({"message": err.roll_up}, status=400)
@@ -36,13 +36,15 @@ async def fetch_credential_route(request: web.BaseRequest):
     context: AdminRequestContext = request["context"]
     try:
         credential_id = request.match_info["credential_id"].strip('"')
-        record = await VcApiService(context.profile).get_credential(credential_id)
+        record = await HolderService(context.profile).get_credential(credential_id)
         return web.json_response(record.serialize()["cred_value"], status=200)
     except (StorageError, StorageNotFoundError) as err:
         return web.json_response({"message": err.roll_up}, status=400)
 
 
 @docs(tags=["vc-api"], summary="Issue a credential")
+@request_schema(web_schemas.IssueCredentialRequest())
+# @response_schema(web_schemas.IssueCredentialResponse(), 200, description="")
 @tenant_authentication
 async def issue_credential_route(request: web.BaseRequest):
     """Request handler for issuing a credential."""
@@ -52,14 +54,16 @@ async def issue_credential_route(request: web.BaseRequest):
         credential = body["credential"]
         options = body["options"] if "options" in body else {}
 
-        vc = await VcApiService(context.profile).issue_credential(credential, options)
-        return web.json_response({"verifiableCredential": vc.serialize()}, status=201)
+        vc = await IssuerService(context.profile).issue_credential(credential, options)
+        return web.json_response({"verifiableCredential": vc}, status=201)
 
-    except (ValidationError, VcApiServiceError, WalletError, InjectionError) as err:
+    except (ValidationError, ServiceError, WalletError, InjectionError) as err:
         return web.json_response({"message": str(err)}, status=400)
 
 
 @docs(tags=["vc-api"], summary="Verify a credential")
+@request_schema(web_schemas.StoreCredentialRequest())
+# @response_schema(web_schemas.VerifyCredentialResponse(), 200, description="")
 @tenant_authentication
 async def verify_credential_route(request: web.BaseRequest):
     """Request handler for verifying a credential."""
@@ -67,11 +71,12 @@ async def verify_credential_route(request: web.BaseRequest):
     body = await request.json()
     try:
         vc = body["verifiableCredential"]
-        result = await VcApiService(context.profile).verify_credential(vc)
+        options = body["options"] if "options" in body else {}
+        result = await VerifierService(context.profile).verify_credential(vc, options)
         return web.json_response(result.serialize())
     except (
         ValidationError,
-        VcApiServiceError,
+        ServiceError,
         ResolverError,
         ValueError,
         WalletError,
@@ -81,6 +86,8 @@ async def verify_credential_route(request: web.BaseRequest):
 
 
 @docs(tags=["vc-api"], summary="Store a credential")
+@request_schema(web_schemas.VerifyCredentialRequest())
+# @response_schema(web_schemas.VerifyCredentialResponse(), 200, description="")
 async def store_credential_route(request: web.BaseRequest):
     """Request handler for storing a credential."""
     context: AdminRequestContext = request["context"]
@@ -88,17 +95,18 @@ async def store_credential_route(request: web.BaseRequest):
 
     try:
         vc = body["verifiableCredential"]
-        cred_id = vc["id"] if "id" in vc else f"urn:uuid:{str(uuid4())}"
         options = {} if "options" not in body else body["options"]
 
-        await VcApiService(context.profile).verify_credential(vc)
-        await VcApiService(context.profile).store_credential(vc, options, cred_id)
+        await VerifierService(context.profile).verify_credential(vc, options)
+        if 'credentialId' not in options:
+            options['credentialId'] = vc["id"] if "id" in vc else f"urn:uuid:{str(uuid4())}"
+        await HolderService(context.profile).store_credential(vc, options)
 
-        return web.json_response({"credentialId": cred_id}, status=200)
+        return web.json_response({"credentialId": options['credentialId']}, status=200)
 
     except (
         ValidationError,
-        VcApiServiceError,
+        ServiceError,
         WalletError,
         InjectionError,
         StorageDuplicateError,
@@ -117,12 +125,12 @@ async def prove_presentation_route(request: web.BaseRequest):
         options = {} if "options" not in body else body["options"]
 
         options["proofType"] = "Ed25519Signature2020"
-        vp = await VcApiService(context.profile).create_presentation(
+        vp = await HolderService(context.profile).create_presentation(
             presentation, options
         )
         return web.json_response({"verifiablePresentation": vp.serialize()}, status=201)
 
-    except (ValidationError, VcApiServiceError, WalletError, InjectionError) as err:
+    except (ValidationError, ServiceError, WalletError, InjectionError) as err:
         return web.json_response({"message": str(err)}, status=400)
 
 
@@ -135,13 +143,15 @@ async def verify_presentation_route(request: web.BaseRequest):
     try:
         vp = body["verifiablePresentation"]
         options = {} if "options" not in body else body["options"]
-        verified = await VcApiService(context.profile).verify_presentation(vp, options)
+        verified = await VerifierService(context.profile).verify_presentation(
+            vp, options
+        )
         return web.json_response(verified.serialize(), status=200)
     except (
         ValidationError,
         WalletError,
         InjectionError,
-        VcApiServiceError,
+        ServiceError,
         ResolverError,
         ValueError,
     ) as err:
@@ -162,8 +172,8 @@ async def register(app: web.Application):
             web.post("/vc/credentials/issue", issue_credential_route),
             web.post("/vc/credentials/store", store_credential_route),
             web.post("/vc/credentials/verify", verify_credential_route),
-            web.post("/vc/presentations/prove", prove_presentation_route),
-            web.post("/vc/presentations/verify", verify_presentation_route),
+            # web.post("/vc/presentations/prove", prove_presentation_route),
+            # web.post("/vc/presentations/verify", verify_presentation_route),
         ]
     )
 

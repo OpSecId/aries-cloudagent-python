@@ -6,7 +6,6 @@ from pyld.jsonld import JsonLdProcessor
 from pyld import jsonld
 
 from ..constants import CREDENTIALS_ISSUER_URL
-from ..document_loader import DocumentLoaderMethod
 from ..error import DataIntegrityProofException
 from ..validation_result import PurposeResult
 
@@ -14,7 +13,7 @@ from .assertion_proof_purpose import AssertionProofPurpose
 
 # Avoid circular dependency
 if TYPE_CHECKING:
-    from ..cryptosuites import _DataIntegrityProof as DataIntegrityProof
+    from ..suites import _DataIntegrityProof as DataIntegrityProof
 
 
 class CredentialIssuancePurpose(AssertionProofPurpose):
@@ -27,7 +26,6 @@ class CredentialIssuancePurpose(AssertionProofPurpose):
         document: dict,
         suite: "DataIntegrityProof",
         verification_method: dict,
-        document_loader: DocumentLoaderMethod,
     ) -> PurposeResult:
         """Validate if the issuer matches the controller of the verification method."""
         try:
@@ -36,7 +34,6 @@ class CredentialIssuancePurpose(AssertionProofPurpose):
                 document=document,
                 suite=suite,
                 verification_method=verification_method,
-                document_loader=document_loader,
             )
 
             # Return early if super check was invalid
@@ -46,10 +43,11 @@ class CredentialIssuancePurpose(AssertionProofPurpose):
             # FIXME: Other implementations don't expand, but
             # if we don't expand we can't get the property using
             # the full CREDENTIALS_ISSUER_URL.
+            jsonld.set_document_loader(jsonld.aiohttp_document_loader(timeout=100))
             [expanded] = jsonld.expand(
                 document,
                 {
-                    "documentLoader": document_loader,
+                    # "documentLoader": document_loader,
                 },
             )
 

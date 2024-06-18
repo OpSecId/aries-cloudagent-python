@@ -6,7 +6,6 @@ from pyld.jsonld import JsonLdProcessor
 from pyld import jsonld
 
 from ..constants import SECURITY_CONTEXT_URL
-from ..document_loader import DocumentLoaderMethod
 from ..error import DataIntegrityProofException
 from ..validation_result import PurposeResult
 
@@ -14,7 +13,7 @@ from .proof_purpose import ProofPurpose
 
 # Avoid circular dependency
 if TYPE_CHECKING:
-    from ..cryptosuites import DataIntegrityProof
+    from ..suites import DataIntegrityProof
 
 
 class ControllerProofPurpose(ProofPurpose):
@@ -27,7 +26,6 @@ class ControllerProofPurpose(ProofPurpose):
         document: dict,
         suite: "DataIntegrityProof",
         verification_method: dict,
-        document_loader: DocumentLoaderMethod,
     ) -> PurposeResult:
         """Validate whether verification method of proof is authorized by controller."""
         try:
@@ -36,7 +34,6 @@ class ControllerProofPurpose(ProofPurpose):
                 document=document,
                 suite=suite,
                 verification_method=verification_method,
-                document_loader=document_loader,
             )
 
             # Return early if super check was invalid
@@ -56,6 +53,7 @@ class ControllerProofPurpose(ProofPurpose):
                 )
 
             # Get the controller
+            jsonld.set_document_loader(jsonld.aiohttp_document_loader(timeout=100))
             result.controller = jsonld.frame(
                 controller_id,
                 frame={
@@ -64,7 +62,7 @@ class ControllerProofPurpose(ProofPurpose):
                     self.term: {"@embed": "@never", "id": verification_id},
                 },
                 options={
-                    "documentLoader": document_loader,
+                    # "documentLoader": document_loader,
                     "expandContext": SECURITY_CONTEXT_URL,
                     # if we don't set base explicitly it will remove the base in returned
                     # document (e.g. use key:z... instead of did:key:z...)

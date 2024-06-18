@@ -6,9 +6,9 @@ from ...messaging.models.openapi import OpenAPISchema
 from .validation_result import (
     PresentationVerificationResultSchema,
 )
-from .options import IssuanceOptions
+from .options import IssuanceOptions, IssuanceOptionsSchema
 from .credential import (
-    CredentialV2Schema,
+    CredentialSchema,
     VerifiableCredentialSchema,
 )
 from .presentation import (
@@ -32,8 +32,8 @@ class FetchCredentialResponse(OpenAPISchema):
 class IssueCredentialRequest(OpenAPISchema):
     """Request schema for issuing a credential."""
 
-    credential = fields.Nested(CredentialV2Schema)
-    options = fields.Nested(IssuanceOptions)
+    credential = fields.Nested(CredentialSchema)
+    options = fields.Nested(IssuanceOptionsSchema)
 
 
 class IssueCredentialResponse(OpenAPISchema):
@@ -42,11 +42,18 @@ class IssueCredentialResponse(OpenAPISchema):
     verifiableCredential = fields.Nested(VerifiableCredentialSchema)
 
 
+class StoreCredentialRequest(OpenAPISchema):
+    """Request schema for issuing a credential."""
+
+    credential = fields.Nested(CredentialSchema)
+    options = fields.Nested(IssuanceOptionsSchema)
+
+
 class VerifyCredentialRequest(OpenAPISchema):
     """Request schema for verifying a credential."""
 
     verifiableCredential = fields.Nested(VerifiableCredentialSchema)
-    options = fields.Nested(IssuanceOptions)
+    options = fields.Nested(IssuanceOptionsSchema)
 
 
 class VerifyCredentialResponse(OpenAPISchema):
