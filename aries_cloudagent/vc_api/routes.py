@@ -11,7 +11,7 @@ from ..config.base import InjectionError
 from ..resolver.base import ResolverError
 from ..storage.error import StorageDuplicateError, StorageError, StorageNotFoundError
 from ..wallet.error import WalletError
-from .services import IssuerService, VerifierService, HolderService, ServiceError
+from .services import StatusService, IssuerService, VerifierService, HolderService, ServiceError
 from .models import web_schemas
 
 
@@ -88,6 +88,7 @@ async def verify_credential_route(request: web.BaseRequest):
 @docs(tags=["vc-api"], summary="Store a credential")
 @request_schema(web_schemas.VerifyCredentialRequest())
 # @response_schema(web_schemas.VerifyCredentialResponse(), 200, description="")
+@tenant_authentication
 async def store_credential_route(request: web.BaseRequest):
     """Request handler for storing a credential."""
     context: AdminRequestContext = request["context"]
@@ -114,48 +115,98 @@ async def store_credential_route(request: web.BaseRequest):
         return web.json_response({"message": str(err)}, status=400)
 
 
-@docs(tags=["vc-api"], summary="Prove a presentation")
+@docs(tags=["vc-api"], summary="Create Status List")
+@request_schema(web_schemas.CreateStatusListRequest())
+# @response_schema(web_schemas.VerifyCredentialResponse(), 200, description="")
 @tenant_authentication
-async def prove_presentation_route(request: web.BaseRequest):
-    """Request handler for creating a presentation."""
+async def create_status_credential_route(request: web.BaseRequest):
+    """Request handler for creating a status credential."""
     context: AdminRequestContext = request["context"]
     body = await request.json()
+
     try:
-        presentation = body["presentation"]
-        options = {} if "options" not in body else body["options"]
+        issuer = body["issuer"]
+        lenght = body["lenght"] if 'lenght' in body else 20000
+        purpose = body["purpose"] if 'purpose' in body else 'revocation'
+        
+        status_list_vc = await StatusService(context.profile).create_status_credential(issuer, lenght, purpose)
 
-        options["proofType"] = "Ed25519Signature2020"
-        vp = await HolderService(context.profile).create_presentation(
-            presentation, options
-        )
-        return web.json_response({"verifiablePresentation": vp.serialize()}, status=201)
+        return web.json_response(status_list_vc, status=201)
 
-    except (ValidationError, ServiceError, WalletError, InjectionError) as err:
-        return web.json_response({"message": str(err)}, status=400)
-
-
-@docs(tags=["vc-api"], summary="Verify a Presentation")
-@tenant_authentication
-async def verify_presentation_route(request: web.BaseRequest):
-    """Request handler for verifying a presentation."""
-    context: AdminRequestContext = request["context"]
-    body = await request.json()
-    try:
-        vp = body["verifiablePresentation"]
-        options = {} if "options" not in body else body["options"]
-        verified = await VerifierService(context.profile).verify_presentation(
-            vp, options
-        )
-        return web.json_response(verified.serialize(), status=200)
     except (
         ValidationError,
+        ServiceError,
         WalletError,
         InjectionError,
-        ServiceError,
-        ResolverError,
-        ValueError,
+        StorageDuplicateError,
     ) as err:
         return web.json_response({"message": str(err)}, status=400)
+
+
+@docs(tags=["vc-api"], summary="Get Status List")
+# @request_schema()
+# @response_schema(web_schemas.VerifyCredentialResponse(), 200, description="")
+async def get_status_credential_route(request: web.BaseRequest):
+    """Request handler for creating a status credential."""
+    context: AdminRequestContext = request["context"]
+    try:
+        credential_id = request.match_info["credential_id"].strip('"')
+        status_list_vc = await StatusService(context.profile).get_status_credential(credential_id)
+
+        return web.json_response({"StatusListCredential": status_list_vc}, status=201)
+
+    except (
+        ValidationError,
+        ServiceError,
+        WalletError,
+        InjectionError,
+        StorageDuplicateError,
+    ) as err:
+        return web.json_response({"message": str(err)}, status=400)
+
+
+# @docs(tags=["vc-api"], summary="Prove a presentation")
+# @tenant_authentication
+# async def prove_presentation_route(request: web.BaseRequest):
+#     """Request handler for creating a presentation."""
+#     context: AdminRequestContext = request["context"]
+#     body = await request.json()
+#     try:
+#         presentation = body["presentation"]
+#         options = {} if "options" not in body else body["options"]
+
+#         options["proofType"] = "Ed25519Signature2020"
+#         vp = await HolderService(context.profile).create_presentation(
+#             presentation, options
+#         )
+#         return web.json_response({"verifiablePresentation": vp.serialize()}, status=201)
+
+#     except (ValidationError, ServiceError, WalletError, InjectionError) as err:
+#         return web.json_response({"message": str(err)}, status=400)
+
+
+# @docs(tags=["vc-api"], summary="Verify a Presentation")
+# @tenant_authentication
+# async def verify_presentation_route(request: web.BaseRequest):
+#     """Request handler for verifying a presentation."""
+#     context: AdminRequestContext = request["context"]
+#     body = await request.json()
+#     try:
+#         vp = body["verifiablePresentation"]
+#         options = {} if "options" not in body else body["options"]
+#         verified = await VerifierService(context.profile).verify_presentation(
+#             vp, options
+#         )
+#         return web.json_response(verified.serialize(), status=200)
+#     except (
+#         ValidationError,
+#         WalletError,
+#         InjectionError,
+#         ServiceError,
+#         ResolverError,
+#         ValueError,
+#     ) as err:
+#         return web.json_response({"message": str(err)}, status=400)
 
 
 async def register(app: web.Application):
@@ -172,6 +223,7 @@ async def register(app: web.Application):
             web.post("/vc/credentials/issue", issue_credential_route),
             web.post("/vc/credentials/store", store_credential_route),
             web.post("/vc/credentials/verify", verify_credential_route),
+            web.post("/vc/credentials/status/create", create_status_credential_route),
             # web.post("/vc/presentations/prove", prove_presentation_route),
             # web.post("/vc/presentations/verify", verify_presentation_route),
         ]

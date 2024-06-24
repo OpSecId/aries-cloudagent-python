@@ -3,22 +3,21 @@
 from typing import Dict, List, Optional, Type, Union, cast
 
 from pyld.jsonld import JsonLdProcessor
+from . import StatusService
 from ...core.profile import Profile
 from ...wallet.default_verification_key_strategy import BaseVerificationKeyStrategy
 from ...wallet.base import BaseWallet
 from ...wallet.key_type import ED25519, KeyType
 from ..models import (
-    CredentialSchema,
-    VerifiableCredential,
+    VerifiableCredentialSchemaV2,
+    VerifiableCredentialV2,
     IssuanceOptions,
     DataIntegrityProof,
-    VerifiablePresentation,
 )
 from ..proofs.constants import (
     SECURITY_CONTEXT_DATA_INTEGRITY_V2_URL,
     SECURITY_CONTEXT_ED25519_2020_URL,
 )
-from ..proofs.validation_result import DocumentVerificationResult
 
 from ..proofs.keys.wallet_key_pair import WalletKeyPair
 from ..proofs import (
@@ -49,7 +48,7 @@ class IssuerService:
         self.profile = profile
 
     async def _validate_(self, credential):
-        errors = CredentialSchema().validate(credential)
+        errors = VerifiableCredentialSchemaV2().validate(credential)
         if len(errors) > 0:
             raise DataIntegrityProofException(
                 f"Credential contains invalid structure: {errors}"
@@ -98,13 +97,19 @@ class IssuerService:
         return signed_document
 
     async def issue_credential(
-        self, credential: VerifiableCredential, options: IssuanceOptions
-    ) -> VerifiableCredential:
+        self, credential: VerifiableCredentialV2, options: IssuanceOptions = {}
+    ) -> VerifiableCredentialV2:
         """Sign a VC with a Data Integrity Proof."""
         # Validate credential
-        self._validate_(credential)
+        await self._validate_(credential)
+        
+        if 'credentialStatus' in options and 'credentialStatus' not in credential:
+            issuer = credential['issuer']['id'] if isinstance(credential['issuer'], dict) else credential['issuer']
+            endpoint = 'https://admin.example.com/vc/credentials/status'
+            status_entry = StatusService(self.profile).create_entry(issuer, options['credentialStatus'], endpoint)
+            credential['credentialStatus'] = status_entry
 
-        credential = VerifiableCredential.deserialize(credential)
+        credential = VerifiableCredentialV2.deserialize(credential)
         options = IssuanceOptions.deserialize(options)
 
         credential.add_context(SECURITY_CONTEXT_DATA_INTEGRITY_V2_URL)

@@ -119,12 +119,6 @@ class DefaultContextBuilder(ContextBuilder):
         if not self.settings.get("transport.disabled"):
             plugin_registry.register_package("aries_cloudagent.protocols")
 
-        # Currently providing admin routes only
-        plugin_registry.register_plugin("aries_cloudagent.holder")
-
-        if not self.settings.get("ledger.disabled"):
-            plugin_registry.register_package("aries_cloudagent.ledger")
-
         plugin_registry.register_plugin("aries_cloudagent.messaging.jsonld")
         plugin_registry.register_plugin("aries_cloudagent.resolver")
         plugin_registry.register_plugin("aries_cloudagent.settings")
@@ -153,10 +147,15 @@ class DefaultContextBuilder(ContextBuilder):
             for plugin in anoncreds_plugins:
                 plugin_registry.register_plugin(plugin)
 
-        if wallet_type == "askar-anoncreds":
-            register_anoncreds_plugins()
-        else:
-            register_askar_plugins()
+
+        if not self.settings.get("ledger.disabled"):
+            # Currently providing admin routes only
+            plugin_registry.register_plugin("aries_cloudagent.holder")
+            plugin_registry.register_package("aries_cloudagent.ledger")
+            if wallet_type == "askar-anoncreds":
+                register_anoncreds_plugins()
+            else:
+                register_askar_plugins()
 
         if context.settings.get("multitenant.admin_enabled"):
             plugin_registry.register_plugin("aries_cloudagent.multitenant.admin")

@@ -1,34 +1,18 @@
 """Services for performing Data Integrity Proof signatures over JSON-LD formatted W3C VCs."""
 
-from typing import Dict, List, Optional, Type, Union, cast
+from typing import Dict, List, Type, Union, cast
 
 from pyld.jsonld import JsonLdProcessor
 from ...core.profile import Profile
-from ...wallet.default_verification_key_strategy import BaseVerificationKeyStrategy
-from ...wallet.base import BaseWallet
 from ...wallet.key_type import ED25519, KeyType
 from ...storage.vc_holder.base import VCHolder
 from ...storage.vc_holder.vc_record import VCRecord
 from ..models import (
-    CredentialSchema,
-    VerifiableCredential,
+    VerifiableCredentialV2,
     IssuanceOptions,
-    DataIntegrityProof,
     VerifiablePresentation,
 )
-from ..proofs.constants import (
-    SECURITY_CONTEXT_DATA_INTEGRITY_V2_URL,
-    SECURITY_CONTEXT_ED25519_2020_URL,
-)
-from ..proofs.validation_result import DocumentVerificationResult
-
-from ..proofs.keys.wallet_key_pair import WalletKeyPair
-from ..proofs import (
-    CredentialIssuancePurpose,
-    DataIntegrityProofException,
-)
 from ..proofs.suites.ed25519_signature_2020 import Ed25519Signature2020
-from ..proofs.purposes.credential_issuance_purpose import CredentialIssuancePurpose
 
 ProofTypes = Union[Type[Ed25519Signature2020]]
 SignatureTypes = Union[Type[Ed25519Signature2020],]
@@ -50,13 +34,13 @@ class HolderService:
         """Initialize the verifier service."""
         self.profile = profile
 
-    async def get_credential(self, credential_id: str) -> VerifiableCredential:
+    async def get_credential(self, credential_id: str) -> VerifiableCredentialV2:
         """Get single stored VC."""
         holder = self.profile.context.inject(VCHolder)
         record = await holder.retrieve_credential_by_id(record_id=credential_id)
         return record
 
-    async def get_credentials(self) -> List[VerifiableCredential]:
+    async def get_credentials(self) -> List[VerifiableCredentialV2]:
         """Get all stored VCs."""
         holder = self.profile.context.inject(VCHolder)
         search = holder.search_credentials()
@@ -73,7 +57,7 @@ class HolderService:
 
     async def store_credential(
         self, vc: VerifiablePresentation, options: IssuanceOptions
-    ) -> VerifiableCredential:
+    ) -> VerifiableCredentialV2:
         """Store a verifiable credential."""
 
         # Saving expanded type as a cred_tag

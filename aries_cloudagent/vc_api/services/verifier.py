@@ -6,8 +6,8 @@ from pyld.jsonld import JsonLdProcessor
 from ...core.profile import Profile
 from ...wallet.key_type import ED25519, KeyType
 from ..models import (
-    CredentialSchema,
-    VerifiableCredential,
+    VerifiableCredentialSchemaV2,
+    VerifiableCredentialV2,
     IssuanceOptions,
     DataIntegrityProof,
     VerifiablePresentation,
@@ -43,7 +43,7 @@ class VerifierService:
         self.profile = profile
 
     async def _validate_(self, credential):
-        errors = CredentialSchema().validate(credential)
+        errors = VerifiableCredentialSchemaV2().validate(credential)
         if len(errors) > 0:
             raise DataIntegrityProofException(
                 f"Credential contains invalid structure: {errors}"
@@ -112,8 +112,8 @@ class VerifierService:
             )
 
     async def verify_credential(
-        self, vc: VerifiableCredential, options: IssuanceOptions
-    ) -> VerifiableCredential:
+        self, vc: VerifiableCredentialV2, options: IssuanceOptions
+    ) -> VerifiableCredentialV2:
         """Verify a VC"""
         # Validate credential
         self._validate_(vc)
@@ -145,7 +145,7 @@ class VerifierService:
 
     async def verify_presentation(
         self, vp: VerifiablePresentation, options: IssuanceOptions
-    ) -> VerifiableCredential:
+    ) -> VerifiableCredentialV2:
         """Sign a VC with a Data Integrity Proof."""
 
         vp = VerifiablePresentation.deserialize(vp)

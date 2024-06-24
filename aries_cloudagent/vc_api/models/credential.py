@@ -29,15 +29,16 @@ from ..proofs.constants import (
     VERIFIABLE_CREDENTIAL_TYPE,
 )
 from .data_integrity_proof import DataIntegrityProof, DataIntegrityProofSchema
+from .examples import EXAMPLE_PROOF
 
 
-class VerifiableCredential(BaseModel):
+class VerifiableCredentialV2(BaseModel):
     """Verifiable CredentialV2 model."""
 
     class Meta:
         """VerifiableCredential metadata."""
 
-        schema_class = "CredentialSchema"
+        schema_class = "CredentialSchemaV2"
 
     def __init__(
         self,
@@ -252,7 +253,7 @@ class VerifiableCredential(BaseModel):
 
     def __eq__(self, o: object) -> bool:
         """Check equality."""
-        if isinstance(o, VerifiableCredential):
+        if isinstance(o, VerifiableCredentialV2):
             return (
                 self.context == o.context
                 and self.id == o.id
@@ -269,7 +270,7 @@ class VerifiableCredential(BaseModel):
         return False
 
 
-class CredentialSchema(BaseModelSchema):
+class CredentialSchemaV2(BaseModelSchema):
     """Linked data credential schema.
 
     Based on https://www.w3.org/TR/vc-data-model
@@ -280,7 +281,7 @@ class CredentialSchema(BaseModelSchema):
         """Accept parameter overload."""
 
         unknown = INCLUDE
-        model_class = VerifiableCredential
+        model_class = VerifiableCredentialV2
 
     context = fields.List(
         UriOrDictField(required=True),
@@ -366,7 +367,7 @@ class CredentialSchema(BaseModelSchema):
         return data
 
 
-class VerifiableCredentialSchema(CredentialSchema):
+class VerifiableCredentialSchemaV2(CredentialSchemaV2):
     """Data integrity verifiable credential schema.
 
     Based on https://www.w3.org/TR/vc-data-model
@@ -378,15 +379,6 @@ class VerifiableCredentialSchema(CredentialSchema):
         required=False,
         metadata={
             "description": "The proof of the credential",
-            "example": {
-                "type": "Ed25519Signature2020",
-                "verificationMethod": ("did:web:example.com#verkey"),
-                "created": "2019-12-11T03:50:55",
-                "proofPurpose": "assertionMethod",
-                "proofValue": (
-                    "eyJhbGciOiAiRWREU0EiLCAiYjY0IjogZmFsc2UsICJjcml0JiNjQiXX0..lKJU0Df_k"
-                    "eblRKhZAS9Qq6zybm-HqUXNVZ8vgEPNTAjQKBhQDxvXNo7nvtUBb_Eq1Ch6YBKY5qBQ"
-                ),
-            },
+            "example": EXAMPLE_PROOF,
         },
     )
