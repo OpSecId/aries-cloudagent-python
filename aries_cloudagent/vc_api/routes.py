@@ -51,12 +51,9 @@ async def issue_credential_route(request: web.BaseRequest):
     service = IssuerService(context.profile)
     try:
         credential = body["credential"]
-        # if credential["@context"][0] == CREDENTIALS_CONTEXT_V1_URL:
-        #     pass
-        # elif credential["@context"][0] == CREDENTIALS_CONTEXT_V2_URL:
-        #     pass
-        # else:
-        #     pass
+        if credential["@context"][0] == CREDENTIALS_CONTEXT_V1_URL and 'issuanceDate' not in credential:
+            pass
+
         credential = (
             Credential_V1.deserialize(credential)
             if credential["@context"][0] == CREDENTIALS_CONTEXT_V1_URL
