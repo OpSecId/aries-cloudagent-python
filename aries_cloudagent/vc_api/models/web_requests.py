@@ -1,7 +1,6 @@
 """VC-API routes web requests schemas."""
 
 from marshmallow import fields
-from marshmallow_oneofschema import OneOfSchema
 from ...messaging.models.openapi import OpenAPISchema
 from . import (
     CredentialSchema_V1,
@@ -12,9 +11,7 @@ from . import (
     VerificationOptionsSchema,
 )
 
-class V1orV2Schema(OneOfSchema):
-    credential = {"v1": CredentialSchema_V1, "v2": CredentialSchema_V2}
-    
+
 class ListCredentialsResponse(OpenAPISchema):
     """Response schema for listing credentials."""
 
@@ -29,7 +26,7 @@ class FetchCredentialResponse(OpenAPISchema):
 
 class IssueCredentialRequest(OpenAPISchema):
     """Request schema for issuing a credential."""
-    
+
     # credential = fields.Nested(CredentialSchema_V1)
     credential = fields.Nested(CredentialSchema_V2)
     options = fields.Nested(IssuanceOptionsSchema)

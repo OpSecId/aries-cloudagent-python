@@ -13,58 +13,26 @@ from ..storage.error import StorageDuplicateError, StorageError, StorageNotFound
 from ..storage.vc_holder.base import VCHolder
 from ..wallet.base import BaseWallet
 from ..wallet.error import WalletError
-from .constants import (
+from .resources.constants import (
     CREDENTIALS_CONTEXT_V1_URL,
     CREDENTIALS_CONTEXT_V2_URL,
 )
+
 # from .vc_ld.manager import VcLdpManager, ServiceError
-from .services import IssuerService
-from .error import ServiceError
-from .models import Credential_V1, Credential_V2, VerifiableCredential_V1, IssuanceOptions
-from .models.web_requests import ListCredentialsResponse, FetchCredentialResponse, IssueCredentialRequest, IssueCredentialResponse, VerifyCredentialRequest
-# from .vc_ld.models.credential import VerifiableCredential
-# from .vc_ld.models.options import LDProofVCOptions
-# from .vc_ld.models.presentation import VerifiablePresentation
-
-
-# @docs(tags=["vc-api"], summary="List credentials")
-# @response_schema(ListCredentialsResponse(), 200, description="")
-# @tenant_authentication
-# async def list_credentials_route(request: web.BaseRequest):
-#     """Request handler for issuing a credential.
-
-#     Args:
-#         request: aiohttp request object
-
-#     """
-#     context: AdminRequestContext = request["context"]
-#     holder = context.inject(VCHolder)
-#     try:
-#         search = holder.search_credentials()
-#         records = [record.serialize()["cred_value"] for record in await search.fetch()]
-#         return web.json_response(records, status=200)
-#     except (StorageError, StorageNotFoundError) as err:
-#         return web.json_response({"message": err.roll_up}, status=400)
-
-
-# @docs(tags=["vc-api"], summary="Fetch credential by ID")
-# @response_schema(FetchCredentialResponse(), 200, description="")
-# @tenant_authentication
-# async def fetch_credential_route(request: web.BaseRequest):
-#     """Request handler for issuing a credential.
-
-#     Args:
-#         request: aiohttp request object
-
-#     """
-#     context: AdminRequestContext = request["context"]
-#     holder = context.inject(VCHolder)
-#     try:
-#         credential_id = request.match_info["credential_id"].strip('"')
-#         record = await holder.retrieve_credential_by_id(record_id=credential_id)
-#         return web.json_response(record.serialize()["cred_value"], status=200)
-#     except (StorageError, StorageNotFoundError) as err:
-#         return web.json_response({"message": err.roll_up}, status=400)
+from .services import IssuerService, IssuerServiceError
+from .models import (
+    Credential_V1,
+    Credential_V2,
+    VerifiableCredential_V1,
+    IssuanceOptions,
+)
+from .models.web_requests import (
+    ListCredentialsResponse,
+    FetchCredentialResponse,
+    IssueCredentialRequest,
+    IssueCredentialResponse,
+    VerifyCredentialRequest,
+)
 
 
 @docs(tags=["vc-api"], summary="Issue a credential")
@@ -83,18 +51,25 @@ async def issue_credential_route(request: web.BaseRequest):
     service = IssuerService(context.profile)
     try:
         credential = body["credential"]
-        options = {} if "options" not in body else body["options"]
+        # if credential["@context"][0] == CREDENTIALS_CONTEXT_V1_URL:
+        #     pass
+        # elif credential["@context"][0] == CREDENTIALS_CONTEXT_V2_URL:
+        #     pass
+        # else:
+        #     pass
+        credential = (
+            Credential_V1.deserialize(credential)
+            if credential["@context"][0] == CREDENTIALS_CONTEXT_V1_URL
+            else Credential_V2.deserialize(credential)
+        )
 
-        if not options.get("proofType", None):
-            options["proofType"] = "Ed25519Signature2020"
-            
-        credential = Credential_V1.deserialize(credential) if credential['@context'][0] == CREDENTIALS_CONTEXT_V1_URL else Credential_V2.deserialize(credential)
+        options = {} if "options" not in body else body["options"]
         options = IssuanceOptions.deserialize(options)
 
         vc = await service.issue(credential, options)
-        response = {"verifiableCredential": vc}
-        return web.json_response(response, status=201)
-    except (ValidationError, ServiceError, WalletError, InjectionError) as err:
+        return web.json_response({"verifiableCredential": vc}, status=201)
+
+    except (ValidationError, IssuerServiceError, WalletError, InjectionError) as err:
         return web.json_response({"message": str(err)}, status=400)
 
 

@@ -6,12 +6,12 @@ from typing import ClassVar, List, Optional, Union
 from pyld import jsonld
 from typing_extensions import TypedDict
 
-from ..check import get_properties_without_context
-from ...constants import SECURITY_CONTEXT_URL
-from ...document_loader import DocumentLoaderMethod
-from ...error import DataIntegrityProofException
-from ..purposes import _ProofPurpose as ProofPurpose
-from ..validation_result import ProofResult
+from .check import get_properties_without_context
+from ..resources.constants import SECURITY_CONTEXT_URL
+from ..document_loader import DocumentLoaderMethod
+from ..crypto import DataIntegrityProofException
+from .purposes import _ProofPurpose as ProofPurpose
+from .validation_result import ProofResult
 
 
 class DeriveProofResult(TypedDict):
@@ -21,7 +21,7 @@ class DeriveProofResult(TypedDict):
     proof: Union[dict, List[dict]]
 
 
-class LinkedDataProof(ABC):
+class DataIntegrityProof(ABC):
     """Base Linked data proof."""
 
     signature_type: ClassVar[str]
@@ -32,7 +32,7 @@ class LinkedDataProof(ABC):
         proof: Optional[dict] = None,
         supported_derive_proof_types: Optional[List[str]] = None,
     ):
-        """Initialize new LinkedDataProof instance."""
+        """Initialize new DataIntegrityProof instance."""
         self.proof = proof
         self.supported_derive_proof_types = supported_derive_proof_types
 
@@ -165,7 +165,9 @@ class LinkedDataProof(ABC):
             )
 
         if framed.get("revoked"):
-            raise DataIntegrityProofException("The verification method has been revoked.")
+            raise DataIntegrityProofException(
+                "The verification method has been revoked."
+            )
 
         return framed
 

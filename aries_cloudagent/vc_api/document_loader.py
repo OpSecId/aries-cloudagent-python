@@ -7,13 +7,14 @@ from typing import Callable
 
 from pydid.did_url import DIDUrl
 from pyld.documentloader import requests as pyld_requests
+from pyld.documentloader import aiohttp as pyld_aiohttp
 from pyld import jsonld
 from pyld.jsonld import JsonLdError, parse_link_header, LINK_HEADER_REL
 
 from ..cache.base import BaseCache
 from ..core.profile import Profile
 from ..resolver.did_resolver import DIDResolver
-from .error import DataIntegrityProofException
+from .crypto import DataIntegrityProofException
 
 from typing import Dict, Optional
 import urllib.parse as urllib_parse
@@ -31,6 +32,7 @@ logger = logging.getLogger(__name__)
 
 nest_asyncio.apply()
 
+
 class DocumentLoader:
     """JSON-LD document loader."""
 
@@ -45,7 +47,8 @@ class DocumentLoader:
         self.profile = profile
         self.resolver = profile.inject(DIDResolver)
         self.cache = profile.inject_or(BaseCache)
-        self.online_request_loader = pyld_requests.requests_document_loader()
+        self.online_request_loader = pyld_aiohttp.aiohttp_document_loader()
+        # self.online_request_loader = pyld_requests.requests_document_loader()
         self.requests_loader = StaticCacheJsonLdDownloader().load
         self.executor = concurrent.futures.ThreadPoolExecutor(max_workers=1)
         self.cache_ttl = cache_ttl
@@ -144,13 +147,12 @@ class StaticCacheJsonLdDownloader:
     """Context downloader with filesystem static cache for common contexts."""
 
     CONTEXT_FILE_MAPPING = {
-        "https://www.w3.org/2018/credentials/v1": "credentials_context.jsonld",
-        "https://w3id.org/vc/status-list/2021/v1": "status_list_context.jsonld",
-        "https://www.w3.org/ns/did/v1": "did_documents_context.jsonld",
-        "https://w3id.org/security/v1": "security-v1-context.jsonld",
-        "https://w3id.org/security/v2": "security-v2-context.jsonld",
-        "https://w3id.org/security/suites/ed25519-2020/v1": "ed25519-2020-context.jsonld",
-        "https://w3id.org/security/bbs/v1": "bbs-v1-context.jsonld",
+        "https://www.w3.org/2018/credentials/v1": "context/credentials_v1.jsonld",
+        "https://www.w3.org/ns/credentials/v2": "context/credentials_v2.jsonld",
+        "https://www.w3.org/ns/did/v1": "context/did_documents_v1.jsonld",
+        "https://w3id.org/security/v2": "context/security_v2.jsonld",
+        "https://w3id.org/security/data-integrity/v2": "context/data_integrity_v2.jsonld",
+        "https://w3id.org/security/suites/ed25519-2020/v1": "context/ed25519_2020.jsonld",
     }
 
     def __init__(
@@ -298,7 +300,6 @@ class JsonLdDocumentParser:
                 code="loading document failed",
                 cause=cause,
             )
-
 
 
 DocumentLoaderMethod = Callable[[str, dict], dict]

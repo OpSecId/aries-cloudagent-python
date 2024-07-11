@@ -24,34 +24,15 @@ class IssuanceOptions(BaseModel):
     def __init__(
         self,
         verification_method: Optional[str] = None,
-        proof_type: Optional[str] = None,
-        proof_purpose: Optional[str] = None,
-        created: Optional[str] = None,
-        domain: Optional[str] = None,
-        challenge: Optional[str] = None,
-        credential_status: Optional[dict] = None,
     ) -> None:
         """Initialize the IssuanceOptions instance."""
 
         self.verification_method = verification_method
-        self.proof_type = proof_type
-        self.proof_purpose = proof_purpose
-        self.created = created
-        self.domain = domain
-        self.challenge = challenge
-        self.credential_status = credential_status
 
     def __eq__(self, o: object) -> bool:
         """Check equality."""
         if isinstance(o, IssuanceOptions):
-            return (
-                self.proof_type == o.proof_type
-                and self.proof_purpose == o.proof_purpose
-                and self.created == o.created
-                and self.domain == o.domain
-                and self.challenge == o.challenge
-                and self.credential_status == o.credential_status
-            )
+            return self.verification_method == o.verification_method
 
         return False
 
@@ -72,8 +53,7 @@ class VerificationOptions(BaseModel):
     def __eq__(self, o: object) -> bool:
         """Check equality."""
         if isinstance(o, VerificationOptions):
-            return (
-            )
+            return ()
 
         return False
 
@@ -187,7 +167,6 @@ class IssuanceOptionsSchema(BaseModelSchema):
     #         )
     #     },
     # )
-
 
 
 class VerificationOptionsSchema(BaseModelSchema):

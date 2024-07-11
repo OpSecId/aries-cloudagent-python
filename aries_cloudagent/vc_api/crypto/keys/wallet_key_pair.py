@@ -14,6 +14,7 @@ from .key_pair import KeyPair
 class DataIntegrityProofException(Exception):
     """Base exception for linked data proof module."""
 
+
 class WalletKeyPair(KeyPair):
     """Base wallet key pair."""
 

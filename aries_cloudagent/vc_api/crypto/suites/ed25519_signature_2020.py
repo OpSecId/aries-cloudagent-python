@@ -4,13 +4,13 @@ from datetime import datetime
 from typing import Optional, Union, List
 
 from ....utils.multiformats import multibase
-from ..crypto import _KeyPair as KeyPair
+from ..keys import _KeyPair as KeyPair
 from ...document_loader import DocumentLoaderMethod
-from ...error import DataIntegrityProofException
-from .linked_data_signature import LinkedDataSignature
+from .. import DataIntegrityProofException
+from ..data_integrity_signature import DataIntegritySignature
 
 
-class Ed25519Signature2020(LinkedDataSignature):
+class Ed25519Signature2020(DataIntegritySignature):
     """Ed25519Signature2020 suite."""
 
     signature_type = "Ed25519Signature2020"

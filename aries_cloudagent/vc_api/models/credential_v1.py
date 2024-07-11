@@ -24,20 +24,21 @@ from ...messaging.valid import (
     Uri,
     UriOrDictField,
 )
-from ..constants import (
+from ..resources.constants import (
     CREDENTIALS_CONTEXT_V1_URL,
     CREDENTIALS_CONTEXT_V2_URL,
     VERIFIABLE_CREDENTIAL_TYPE,
 )
 from .proof import DIProof, DataIntegrityProofSchema
 
-class Credential(BaseModel):
+
+class Credential_V1(BaseModel):
     """Credential model."""
 
     class Meta:
         """Credential metadata."""
 
-        schema_class = "CredentialSchema"
+        schema_class = "CredentialSchema_V1"
 
     def __init__(
         self,
@@ -239,7 +240,7 @@ class Credential(BaseModel):
 
     def __eq__(self, o: object) -> bool:
         """Check equality."""
-        if isinstance(o, Credential):
+        if isinstance(o, Credential_V1):
             return (
                 self.context == o.context
                 and self.id == o.id
@@ -255,13 +256,13 @@ class Credential(BaseModel):
         return False
 
 
-class VerifiableCredential(Credential):
+class VerifiableCredential_V1(Credential_V1):
     """Verifiable Credential model."""
 
     class Meta:
         """VerifiableCredential metadata."""
 
-        schema_class = "VerifiableCredentialSchema"
+        schema_class = "VerifiableCredentialSchema_V1"
 
     def __init__(
         self,
@@ -270,7 +271,6 @@ class VerifiableCredential(Credential):
         """Initialize the VerifiableCredential instance."""
 
         self._proof = proof
-
 
     @property
     def proof(self):
@@ -284,15 +284,13 @@ class VerifiableCredential(Credential):
 
     def __eq__(self, o: object) -> bool:
         """Check equality."""
-        if isinstance(o, VerifiableCredential):
-            return (
-                self.proof == o.proof
-            )
+        if isinstance(o, VerifiableCredential_V1):
+            return self.proof == o.proof
 
         return False
 
 
-class CredentialSchema(BaseModelSchema):
+class CredentialSchema_V1(BaseModelSchema):
     """Linked data credential schema.
 
     Based on https://www.w3.org/TR/vc-data-model
@@ -303,7 +301,7 @@ class CredentialSchema(BaseModelSchema):
         """Accept parameter overload."""
 
         unknown = INCLUDE
-        model_class = Credential
+        model_class = Credential_V1
 
     context = fields.List(
         UriOrDictField(required=True),
@@ -389,7 +387,7 @@ class CredentialSchema(BaseModelSchema):
         return data
 
 
-class VerifiableCredentialSchema(CredentialSchema):
+class VerifiableCredentialSchema_V1(CredentialSchema_V1):
     """Linked data verifiable credential schema.
 
     Based on https://www.w3.org/TR/vc-data-model

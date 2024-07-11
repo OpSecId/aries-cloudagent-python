@@ -1,5 +1,3 @@
-from .issuer import IssuerService
+from .issuer import IssuerService, IssuerServiceError
 
-__all__ = [
-    "IssuerService"
-]
+__all__ = ["IssuerService", "IssuerServiceError"]
