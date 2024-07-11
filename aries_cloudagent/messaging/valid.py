@@ -800,8 +800,9 @@ class PresentationType(Validator):
 class CredentialContext(Validator):
     """Credential Context."""
 
-    FIRST_CONTEXT = "https://www.w3.org/2018/credentials/v1"
-    EXAMPLE = [FIRST_CONTEXT, "https://www.w3.org/2018/credentials/examples/v1"]
+    V1_CONTEXT = "https://www.w3.org/2018/credentials/v1"
+    V2_CONTEXT = "https://www.w3.org/ns/credentials/v2"
+    EXAMPLE = [V2_CONTEXT, "https://www.w3.org/ns/credentials/examples/v2"]
 
     def __init__(self) -> None:
         """Initialize the instance."""
@@ -811,9 +812,9 @@ class CredentialContext(Validator):
         """Validate input value."""
         length = len(value)
 
-        if length < 1 or value[0] != CredentialContext.FIRST_CONTEXT:
+        if length < 1 or value[0] not in [CredentialContext.V1_CONTEXT, CredentialContext.V2_CONTEXT]:
             raise ValidationError(
-                f"First context must be {CredentialContext.FIRST_CONTEXT}"
+                f"First context must be one of {CredentialContext.V1_CONTEXT} or {CredentialContext.V1_CONTEXT}"
             )
 
         return value
@@ -823,9 +824,16 @@ class CredentialSubject(Validator):
     """Credential subject."""
 
     EXAMPLE = {
-        "id": "did:example:ebfeb1f712ebc6f1c276e12ec21",
-        "alumniOf": {"id": "did:example:c276e12ec21ebfeb1f712ebc6f1"},
+    "id": "did:example:ebfeb1f712ebc6f1c276e12ec21",
+    "degree": {
+      "type": "ExampleBachelorDegree",
+      "name": "Bachelor of Science and Arts"
+    },
+    "alumniOf": {
+      "name": "Example University"
     }
+  }
+  
 
     def __init__(self) -> None:
         """Initialize the instance."""
@@ -848,6 +856,43 @@ class CredentialSubject(Validator):
         return value
 
 
+class CredentialSchema(Validator):
+    """Credential schema."""
+
+    EXAMPLE = [{
+        "id": "https://example.org/examples/degree.json",
+        "type": "JsonSchema"
+    },
+    {
+        "id": "https://example.org/examples/alumni.json",
+        "type": "JsonSchema"
+    }]
+
+    def __init__(self) -> None:
+        """Initialize the instance."""
+        super().__init__()
+
+    def __call__(self, value):
+        """Validate input value."""
+        schemas = value if isinstance(value, list) else [value]
+
+        for schema in schemas:
+            if 'id' not in schema or 'type' not in schema:
+                raise ValidationError(
+                    f'credential schema MUST have an id or a type'
+                ) from None
+                
+            uri_validator = Uri()
+            try:
+                uri_validator(schema["id"])
+            except ValidationError:
+                raise ValidationError(
+                    f'credential status id {schema["id"]} must be URI'
+                ) from None
+
+        return value
+
+
 class CredentialStatus(Validator):
     """Credential status."""
 
@@ -865,7 +910,124 @@ class CredentialStatus(Validator):
 
     def __call__(self, value):
         """Validate input value."""
-        # TODO write some tests
+        status_entries = value if isinstance(value, list) else [value]
+
+        for status_entry in status_entries:
+            if 'id' not in status_entry and 'type' not in status_entry:
+                raise ValidationError(
+                    f'credential status MUST have an id and a type'
+                ) from None
+                
+            uri_validator = Uri()
+            try:
+                uri_validator(status_entry["id"])
+            except ValidationError:
+                raise ValidationError(
+                    f'credential status id {status_entry["id"]} must be URI'
+                ) from None
+
+        return value
+
+
+class TermsOfUse(Validator):
+    """Terms of use."""
+
+    EXAMPLE = {
+        "id": "https://api-test.ebsi.eu/trusted-issuers-registry/v4/issuers/did:ebsi:zz7XsC9ixAXuZecoD9sZEM1/attributes/7201d95fef05f72667f5454c2192da2aa30d9e052eeddea7651b47718d6f31b0",
+        "type": "IssuanceCertificate"
+    }
+
+    def __init__(self) -> None:
+        """Initialize the instance."""
+        super().__init__()
+
+    def __call__(self, value):
+        """Validate input value."""
+        terms_of_use = value if isinstance(value, list) else [value]
+
+        for term in terms_of_use:
+            if 'id' not in term or 'type' not in term:
+                raise ValidationError(
+                    f'terms of use MUST have an id and a type'
+                ) from None
+                
+            uri_validator = Uri()
+            try:
+                uri_validator(term["id"])
+            except ValidationError:
+                raise ValidationError(
+                    f'terms of use id {term["id"]} must be URI'
+                ) from None
+
+        return value
+
+
+class RefreshService(Validator):
+    """Refresh service."""
+
+    EXAMPLE = {
+        "type": "VerifiableCredentialRefreshService2021",
+        "url": "https://university.example/workflows/refresh-degree",
+        "validFrom": "2021-09-01T19:23:24Z",
+        "validUntil": "2022-02-01T19:23:24Z"
+    }
+
+    def __init__(self) -> None:
+        """Initialize the instance."""
+        super().__init__()
+
+    def __call__(self, value):
+        """Validate input value."""
+        refresh_services = value if isinstance(value, list) else [value]
+
+        for service in refresh_services:
+            if 'id' not in service or 'type' not in service:
+                raise ValidationError(
+                    f'refresh service of use MUST have an id and a type'
+                ) from None
+                
+            uri_validator = Uri()
+            try:
+                uri_validator(service["id"])
+            except ValidationError:
+                raise ValidationError(
+                    f'refresh service of use id {service["id"]} must be URI'
+                ) from None
+
+        return value
+
+
+class Evidence(Validator):
+    """Evidence."""
+
+    EXAMPLE = {
+        "type": "VerifiableCredentialRefreshService2021",
+        "url": "https://university.example/workflows/refresh-degree",
+        "validFrom": "2021-09-01T19:23:24Z",
+        "validUntil": "2022-02-01T19:23:24Z"
+    }
+
+    def __init__(self) -> None:
+        """Initialize the instance."""
+        super().__init__()
+
+    def __call__(self, value):
+        """Validate input value."""
+        evidences = value if isinstance(value, list) else [value]
+
+        for evidence in evidences:
+            if 'id' not in evidence or 'type' not in evidence:
+                raise ValidationError(
+                    f'Evidence MUST have an id and a type'
+                ) from None
+                
+            uri_validator = Uri()
+            try:
+                uri_validator(evidence["id"])
+            except ValidationError:
+                raise ValidationError(
+                    f'Evidence of use id {evidence["id"]} must be URI'
+                ) from None
 
         return value
 
@@ -1013,8 +1175,20 @@ URI_EXAMPLE = Uri.EXAMPLE
 CREDENTIAL_SUBJECT_VALIDATE = CredentialSubject()
 CREDENTIAL_SUBJECT_EXAMPLE = CredentialSubject.EXAMPLE
 
+CREDENTIAL_SCHEMA_VALIDATE = CredentialStatus()
+CREDENTIAL_SCHEMA_EXAMPLE = CredentialStatus.EXAMPLE
+
 CREDENTIAL_STATUS_VALIDATE = CredentialStatus()
 CREDENTIAL_STATUS_EXAMPLE = CredentialStatus.EXAMPLE
+
+TERMS_OF_USE_VALIDATE = CredentialStatus()
+TERMS_OF_USE_EXAMPLE = CredentialStatus.EXAMPLE
+
+REFRESH_SERVICE_VALIDATE = CredentialStatus()
+REFRESH_SERVICE_EXAMPLE = CredentialStatus.EXAMPLE
+
+EVIDENCE_VALIDATE = CredentialStatus()
+EVIDENCE_EXAMPLE = CredentialStatus.EXAMPLE
 
 PRESENTATION_TYPE_VALIDATE = PresentationType()
 PRESENTATION_TYPE_EXAMPLE = PresentationType.EXAMPLE

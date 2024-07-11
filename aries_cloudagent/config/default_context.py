@@ -144,6 +144,7 @@ class DefaultContextBuilder(ContextBuilder):
         plugin_registry.register_plugin("aries_cloudagent.resolver")
         plugin_registry.register_plugin("aries_cloudagent.settings")
         plugin_registry.register_plugin("aries_cloudagent.vc")
+        plugin_registry.register_plugin("aries_cloudagent.vc_api")
         plugin_registry.register_plugin("aries_cloudagent.wallet")
 
         anoncreds_plugins = [
