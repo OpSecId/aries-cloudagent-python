@@ -16,7 +16,7 @@
       
       
       <link rel="icon" href="https://raw.githubusercontent.com/hyperledger/aries-cloudagent-python/main/docs/assets/aries-favicon.png">
-      <meta name="generator" content="mkdocs-1.6.0, mkdocs-material-9.5.27">
+      <meta name="generator" content="mkdocs-1.6.0, mkdocs-material-9.5.28">
     
     
       
@@ -1691,6 +1691,27 @@
   
   
     <li class="md-nav__item">
+      <a href="../deploying/AnoncredsControllerMigration/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Controller Migration to use AnonCreds Rust
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../deploying/Poetry/" class="md-nav__link">
         
   
@@ -2180,6 +2201,16 @@ a major, minor or patch release, per <a href="https://semver.org/">semver</a> ru
 <p>Create a PR branch from an updated <code>main</code> branch.</p>
 </li>
 <li>
+<p>See if there are any Document Site <code>mkdocs</code> changes needed. Run the script
+   <code>./scripts/prepmkdocs.sh; mkdocs</code>. Watch the log, noting particularly if
+   there are new documentation files that are in the docs folder and not
+   referenced in the mkdocs navigation. If there is, update the <code>mkdocs.yml</code>
+   file as necessary. On completion of the testing, run the script
+   <code>./scripts/prepmkdocs clean</code> to undo the temporary changes to the docs. Be
+   sure to do the last <code>clean</code> step -- <strong>DO NOT MERGE THE TEMPORARY DOC
+   CHANGES.</strong></p>
+</li>
+<li>
 <p>Update the CHANGELOG.md to add the new release.  Only create a new section when working on the first release candidate for a new release. When transitioning from one release candidate to the next, or to an official release, just update the title and date of the change log section.</p>
 </li>
 <li>
@@ -2426,7 +2457,7 @@ sure that ChatGPT isn't messing with you and you have the needed data.</p>
     <script id="__config" type="application/json">{"base": "..", "features": ["content.code.copy", "navigation.expand", "navigation.footer", "navigation.instant", "navigation.tabs", "navigation.tabs.sticky", "navigation.top", "navigation.tracking", "toc.follow"], "search": "../assets/javascripts/workers/search.b8dbb3d2.min.js", "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"provider": "mike"}}</script>
     
     
-      <script src="../assets/javascripts/bundle.ad660dcc.min.js"></script>
+      <script src="../assets/javascripts/bundle.fe8b6f2b.min.js"></script>
       
     
   </body>
