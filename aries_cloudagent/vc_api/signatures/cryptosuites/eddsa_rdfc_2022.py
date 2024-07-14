@@ -1,26 +1,15 @@
-"""Ed25519Signature2018 suite."""
+"""EddsaRdfc2022 cryptosuite."""
 
-# from rdflib.plugins.parsers.jsonld import JsonLDParser
-# from rdflib.plugins.parsers import jsonld
-# from rdflib.parser import PythonInputSource
-# from rdflib import Graph
 from pyld import jsonld
 import hashlib
 
-from datetime import datetime
-from typing import Optional, Union, List
+from typing import List
 
 from ....utils.multiformats import multibase
-from ..keys import _KeyPair as KeyPair
 from ...document_loader import DocumentLoader
-from .. import DataIntegrityProofException
+from ..keys import _KeyPair as KeyPair
 from ..data_integrity_signature import DataIntegritySignature
-from ...resources.constants import (
-    SECURITY_CONTEXT_ED25519_2020_URL,
-)
-
-from datetime import datetime
-
+from .. import DataIntegrityProofException
 
 class EddsaRdfc2022(DataIntegritySignature):
     """EddsaRdfc2022 suite."""
