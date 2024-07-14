@@ -819,28 +819,6 @@ class CredentialContext(Validator):
         return value
 
 
-class CredentialContext_V2(Validator):
-    """Credential Context."""
-
-    FIRST_CONTEXT = "https://www.w3.org/ns/credentials/v2"
-    EXAMPLE = [FIRST_CONTEXT, "https://www.w3.org/ns/credentials/examples/v2"]
-
-    def __init__(self) -> None:
-        """Initialize the instance."""
-        super().__init__()
-
-    def __call__(self, value):
-        """Validate input value."""
-        length = len(value)
-
-        if length < 1 or value[0] != CredentialContext_V2.FIRST_CONTEXT:
-            raise ValidationError(
-                f"First context must be {CredentialContext_V2.FIRST_CONTEXT}"
-            )
-
-        return value
-
-
 class CredentialSubject(Validator):
     """Credential subject."""
 
@@ -1028,9 +1006,6 @@ CREDENTIAL_TYPE_EXAMPLE = CredentialType.EXAMPLE
 
 CREDENTIAL_CONTEXT_VALIDATE = CredentialContext()
 CREDENTIAL_CONTEXT_EXAMPLE = CredentialContext.EXAMPLE
-
-CREDENTIAL_CONTEXT_V2_VALIDATE = CredentialContext_V2()
-CREDENTIAL_CONTEXT_V2_EXAMPLE = CredentialContext_V2.EXAMPLE
 
 URI_VALIDATE = Uri()
 URI_EXAMPLE = Uri.EXAMPLE
