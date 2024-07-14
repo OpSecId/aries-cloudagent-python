@@ -8,37 +8,55 @@ from marshmallow import INCLUDE, ValidationError, fields, post_dump
 
 from ...messaging.models.base import BaseModel, BaseModelSchema
 from ...messaging.valid import (
-    CREDENTIAL_CONTEXT_EXAMPLE,
-    CREDENTIAL_CONTEXT_VALIDATE,
-    CREDENTIAL_STATUS_EXAMPLE,
-    CREDENTIAL_STATUS_VALIDATE,
-    CREDENTIAL_SUBJECT_EXAMPLE,
-    CREDENTIAL_SUBJECT_VALIDATE,
-    CREDENTIAL_TYPE_EXAMPLE,
-    CREDENTIAL_TYPE_VALIDATE,
-    RFC3339_DATETIME_EXAMPLE,
-    RFC3339_DATETIME_VALIDATE,
     DictOrDictListField,
     DIDKey,
     StrOrDictField,
     Uri,
     UriOrDictField,
+    RFC3339_DATETIME_EXAMPLE,
+    RFC3339_DATETIME_VALIDATE,
+)
+from .validations import (
+    CREDENTIAL_CONTEXT_EXAMPLE,
+    CREDENTIAL_CONTEXT_VALIDATE,
+    CREDENTIAL_TYPE_EXAMPLE,
+    CREDENTIAL_TYPE_VALIDATE,
+    CREDENTIAL_SUBJECT_EXAMPLE,
+    CREDENTIAL_SUBJECT_VALIDATE,
+    CREDENTIAL_SCHEMA_VALIDATE,
+    CREDENTIAL_SCHEMA_EXAMPLE,
+    CREDENTIAL_STATUS_EXAMPLE,
+    CREDENTIAL_STATUS_VALIDATE,
+    TERMS_OF_USE_VALIDATE,
+    TERMS_OF_USE_EXAMPLE,
+    REFRESH_SERVICE_VALIDATE,
+    REFRESH_SERVICE_EXAMPLE,
+    RENDER_METHOD_VALIDATE,
+    RENDER_METHOD_EXAMPLE,
+    EVIDENCE_VALIDATE,
+    EVIDENCE_EXAMPLE,
+    DATA_INTEGRITY_PROOF_VALIDATE,
+    DATA_INTEGRITY_PROOF_EXAMPLE,
 )
 from ..resources.constants import (
     CREDENTIALS_CONTEXT_V1_URL,
     CREDENTIALS_CONTEXT_V2_URL,
+    EXAMPLE_CONTEXT_V2_URL,
+    SECURITY_JWK_CONTEXT_V1_URL,
+    SECURITY_MULTIKEY_CONTEXT_V1_URL,
+    SECURITY_DATA_INTEGRITY_CONTEXT_V2_URL,
     VERIFIABLE_CREDENTIAL_TYPE,
 )
 from .proof import DIProof, DataIntegrityProofSchema
 
 
-class Credential_V1(BaseModel):
-    """Credential model."""
+class CredentialBase(BaseModel):
+    """Credential base model."""
 
     class Meta:
-        """Credential metadata."""
+        """CredentialBase metadata."""
 
-        schema_class = "CredentialSchema_V1"
+        schema_class = "CredentialBaseSchema"
 
     def __init__(
         self,
@@ -46,23 +64,37 @@ class Credential_V1(BaseModel):
         id: Optional[str] = None,
         type: Optional[List[str]] = None,
         issuer: Optional[Union[dict, str]] = None,
+        valid_from: Optional[str] = None,
+        valid_until: Optional[str] = None,
         issuance_date: Optional[str] = None,
         expiration_date: Optional[str] = None,
+        credential_schema: Optional[Union[dict, List[dict]]] = None,
         credential_subject: Optional[Union[dict, List[dict]]] = None,
         credential_status: Optional[Union[dict, List[dict]]] = None,
+        refresh_service: Optional[Union[dict, List[dict]]] = None,
+        terms_of_use: Optional[Union[dict, List[dict]]] = None,
+        render_method: Optional[Union[dict, List[dict]]] = None,
+        evidence: Optional[Union[dict, List[dict]]] = None,
+        proof: Optional[Union[dict, List[dict]]] = None,
         **kwargs,
     ) -> None:
-        """Initialize the Credential instance."""
-        self._context = context or [CREDENTIALS_CONTEXT_V1_URL]
+        """Initialize the VerifiableCredential instance."""
+        self._context = context
         self._id = id
-        self._type = type or [VERIFIABLE_CREDENTIAL_TYPE]
+        self._type = type
         self._issuer = issuer
-        self._credential_subject = credential_subject
-        self._credential_status = credential_status
-
-        # TODO: proper date parsing
+        self._valid_from = valid_from
+        self._valid_until = valid_until
         self._issuance_date = issuance_date
         self._expiration_date = expiration_date
+        self._credential_subject = credential_subject
+        self._credential_schema = credential_schema
+        self._credential_status = credential_status
+        self._refresh_service = refresh_service
+        self._render_method = render_method
+        self._terms_of_use = terms_of_use
+        self._evidence = evidence
+        self._proof = proof
 
         self.extra = kwargs
 
@@ -75,7 +107,7 @@ class Credential_V1(BaseModel):
     def context(self, context: List[Union[str, dict]]):
         """Setter for context.
 
-        First item must be credentials v1 url
+        First item must be credentials v1 or v2 url
         """
         assert context[0] in [CREDENTIALS_CONTEXT_V1_URL, CREDENTIALS_CONTEXT_V2_URL]
 
@@ -164,6 +196,36 @@ class Credential_V1(BaseModel):
         self._issuer = issuer
 
     @property
+    def valid_from(self):
+        """Getter for valid from date."""
+        return self._valid_from
+
+    @valid_from.setter
+    def valid_from(self, date: Union[str, datetime]):
+        """Setter for valid from date."""
+        if isinstance(date, datetime):
+            if not date.tzinfo:
+                date = date.replace(tzinfo=tz.UTC)
+            date = date.isoformat()
+
+        self._valid_from = date
+
+    @property
+    def valid_until(self):
+        """Getter for valid until date."""
+        return self._valid_until
+
+    @valid_until.setter
+    def valid_until(self, date: Union[str, datetime]):
+        """Setter for valid until date."""
+        if isinstance(date, datetime):
+            if not date.tzinfo:
+                date = date.replace(tzinfo=tz.UTC)
+            date = date.isoformat()
+
+        self._valid_until = date
+
+    @property
     def issuance_date(self):
         """Getter for issuance date."""
         return self._issuance_date
@@ -184,7 +246,7 @@ class Credential_V1(BaseModel):
         return self._expiration_date
 
     @expiration_date.setter
-    def expiration_date(self, date: Union[str, datetime, None]):
+    def expiration_date(self, date: Union[str, datetime]):
         """Setter for expiration date."""
         if isinstance(date, datetime):
             if not date.tzinfo:
@@ -234,66 +296,70 @@ class Credential_V1(BaseModel):
         self._credential_subject = credential_subject
 
     @property
+    def credential_schema(self):
+        """Getter for credential schema."""
+        return self._credential_schema
+
+    @property
     def credential_status(self):
         """Getter for credential status."""
         return self._credential_status
 
-    def __eq__(self, o: object) -> bool:
-        """Check equality."""
-        if isinstance(o, Credential_V1):
-            return (
-                self.context == o.context
-                and self.id == o.id
-                and self.type == o.type
-                and self.issuer == o.issuer
-                and self.issuance_date == o.issuance_date
-                and self.expiration_date == o.expiration_date
-                and self.credential_subject == o.credential_subject
-                and self.credential_status == o.credential_status
-                and self.extra == o.extra
-            )
+    @property
+    def terms_of_use(self):
+        """Getter for terms of use."""
+        return self._terms_of_use
 
-        return False
+    @property
+    def render_method(self):
+        """Getter for refresh service."""
+        return self._render_method
 
+    @property
+    def refresh_service(self):
+        """Getter for refresh service."""
+        return self._refresh_service
 
-class VerifiableCredential_V1(Credential_V1):
-    """Verifiable Credential model."""
-
-    class Meta:
-        """VerifiableCredential metadata."""
-
-        schema_class = "VerifiableCredentialSchema_V1"
-
-    def __init__(
-        self,
-        proof: Optional[Union[dict, DIProof]] = None,
-    ) -> None:
-        """Initialize the VerifiableCredential instance."""
-
-        self._proof = proof
+    @property
+    def evidence(self):
+        """Getter for evidence."""
+        return self._evidence
 
     @property
     def proof(self):
         """Getter for proof."""
         return self._proof
 
-    @proof.setter
-    def proof(self, proof: DIProof):
-        """Setter for proof."""
-        self._proof = proof
-
     def __eq__(self, o: object) -> bool:
         """Check equality."""
-        if isinstance(o, VerifiableCredential_V1):
-            return self.proof == o.proof
+        if isinstance(o, CredentialBase):
+            return (
+                self.context == o.context
+                and self.id == o.id
+                and self.type == o.type
+                and self.issuer == o.issuer
+                and self.valid_from == o.valid_from
+                and self.valid_until == o.valid_until
+                and self.issuance_date == o.issuance_date
+                and self.expiration_date == o.expiration_date
+                and self.credential_subject == o.credential_subject
+                and self.credential_schema == o.credential_schema
+                and self.credential_status == o.credential_status
+                and self.terms_of_use == o.terms_of_use
+                and self.refresh_service == o.refresh_service
+                and self.render_method == o.render_method
+                and self.evidence == o.evidence
+                and self.proof == o.proof
+                and self.extra == o.extra
+            )
 
         return False
 
 
-class CredentialSchema_V1(BaseModelSchema):
-    """Linked data credential schema.
+class CredentialBaseSchema(BaseModelSchema):
+    """Credential base schema.
 
-    Based on https://www.w3.org/TR/vc-data-model
+    Based on https://w3c.github.io/vc-data-model/
 
     """
 
@@ -301,7 +367,7 @@ class CredentialSchema_V1(BaseModelSchema):
         """Accept parameter overload."""
 
         unknown = INCLUDE
-        model_class = Credential_V1
+        model_class = CredentialBase
 
     context = fields.List(
         UriOrDictField(required=True),
@@ -309,7 +375,6 @@ class CredentialSchema_V1(BaseModelSchema):
         required=True,
         validate=CREDENTIAL_CONTEXT_VALIDATE,
         metadata={
-            "description": "The JSON-LD context of the credential",
             "example": CREDENTIAL_CONTEXT_EXAMPLE,
         },
     )
@@ -318,7 +383,6 @@ class CredentialSchema_V1(BaseModelSchema):
         required=False,
         validate=Uri(),
         metadata={
-            "description": "The ID of the credential",
             "example": "http://example.edu/credentials/1872",
         },
     )
@@ -328,7 +392,6 @@ class CredentialSchema_V1(BaseModelSchema):
         required=True,
         validate=CREDENTIAL_TYPE_VALIDATE,
         metadata={
-            "description": "The JSON-LD type of the credential",
             "example": CREDENTIAL_TYPE_EXAMPLE,
         },
     )
@@ -344,24 +407,32 @@ class CredentialSchema_V1(BaseModelSchema):
         },
     )
 
-    issuance_date = fields.Str(
-        data_key="issuanceDate",
-        required=True,
+    valid_from = fields.Str(
+        required=False,
+        data_key="validFrom",
         validate=RFC3339_DATETIME_VALIDATE,
-        metadata={
-            "description": "The issuance date",
-            "example": RFC3339_DATETIME_EXAMPLE,
-        },
+        metadata={"example": RFC3339_DATETIME_EXAMPLE},
+    )
+
+    valid_until = fields.Str(
+        required=False,
+        data_key="validUntil",
+        validate=RFC3339_DATETIME_VALIDATE,
+        metadata={"example": RFC3339_DATETIME_EXAMPLE},
+    )
+
+    issuance_date = fields.Str(
+        required=False,
+        data_key="issuanceDate",
+        validate=RFC3339_DATETIME_VALIDATE,
+        metadata={"example": RFC3339_DATETIME_EXAMPLE},
     )
 
     expiration_date = fields.Str(
-        data_key="expirationDate",
         required=False,
+        data_key="expirationDate",
         validate=RFC3339_DATETIME_VALIDATE,
-        metadata={
-            "description": "The expiration date",
-            "example": RFC3339_DATETIME_EXAMPLE,
-        },
+        metadata={"example": RFC3339_DATETIME_EXAMPLE},
     )
 
     credential_subject = DictOrDictListField(
@@ -371,11 +442,55 @@ class CredentialSchema_V1(BaseModelSchema):
         metadata={"example": CREDENTIAL_SUBJECT_EXAMPLE},
     )
 
+    credential_schema = DictOrDictListField(
+        required=False,
+        data_key="credentialSchema",
+        validate=CREDENTIAL_SCHEMA_VALIDATE,
+        metadata={"example": CREDENTIAL_SCHEMA_EXAMPLE},
+    )
+
     credential_status = DictOrDictListField(
         required=False,
         data_key="credentialStatus",
         validate=CREDENTIAL_STATUS_VALIDATE,
         metadata={"example": CREDENTIAL_STATUS_EXAMPLE},
+    )
+
+    terms_of_use = DictOrDictListField(
+        required=False,
+        data_key="termsOfUse",
+        validate=TERMS_OF_USE_VALIDATE,
+        metadata={"example": TERMS_OF_USE_EXAMPLE},
+    )
+
+    refresh_service = DictOrDictListField(
+        required=False,
+        data_key="refreshService",
+        validate=REFRESH_SERVICE_VALIDATE,
+        metadata={"example": REFRESH_SERVICE_EXAMPLE},
+    )
+
+    render_method = DictOrDictListField(
+        required=False,
+        data_key="renderMethod",
+        validate=RENDER_METHOD_VALIDATE,
+        metadata={"example": RENDER_METHOD_EXAMPLE},
+    )
+
+    evidence = DictOrDictListField(
+        required=False,
+        data_key="evidence",
+        validate=EVIDENCE_VALIDATE,
+        metadata={"example": EVIDENCE_EXAMPLE},
+    )
+
+    proof = fields.Nested(
+        DataIntegrityProofSchema(),
+        required=False,
+        metadata={
+            "description": "The proof of the credential",
+            "example": DATA_INTEGRITY_PROOF_EXAMPLE,
+        },
     )
 
     @post_dump(pass_original=True)
@@ -387,10 +502,57 @@ class CredentialSchema_V1(BaseModelSchema):
         return data
 
 
-class VerifiableCredentialSchema_V1(CredentialSchema_V1):
-    """Linked data verifiable credential schema.
+class VerifiableCredentialBase(CredentialBase):
+    """Verifiable Credential base model."""
 
-    Based on https://www.w3.org/TR/vc-data-model
+    class Meta:
+        """VerifiableCredentialBase metadata."""
+
+        schema_class = "VerifiableCredentialBase"
+
+    def __init__(
+        self,
+        context: Optional[List[Union[str, dict]]] = None,
+        id: Optional[str] = None,
+        type: Optional[List[str]] = None,
+        issuer: Optional[Union[dict, str]] = None,
+        valid_from: Optional[str] = None,
+        valid_until: Optional[str] = None,
+        issuance_date: Optional[str] = None,
+        expiration_date: Optional[str] = None,
+        credential_schema: Optional[Union[dict, List[dict]]] = None,
+        credential_subject: Optional[Union[dict, List[dict]]] = None,
+        credential_status: Optional[Union[dict, List[dict]]] = None,
+        refresh_service: Optional[Union[dict, List[dict]]] = None,
+        terms_of_use: Optional[Union[dict, List[dict]]] = None,
+        evidence: Optional[Union[dict, List[dict]]] = None,
+        proof: Optional[Union[dict, List[dict]]] = None,
+        **kwargs,
+    ) -> None:
+        """Initialize the VerifiableCredential instance."""
+        self._context = context
+        self._id = id
+        self._type = type
+        self._issuer = issuer
+        self._valid_from = valid_from
+        self._valid_until = valid_until
+        self._issuance_date = issuance_date
+        self._expiration_date = expiration_date
+        self._credential_subject = credential_subject
+        self._credential_schema = credential_schema
+        self._credential_status = credential_status
+        self._refresh_service = refresh_service
+        self._terms_of_use = terms_of_use
+        self._evidence = evidence
+        self._proof = proof
+
+        self.extra = kwargs
+
+
+class VerifiableCredentialBaseSchema(CredentialBaseSchema):
+    """Verifiable credential base schema.
+
+    Based on https://w3c.github.io/vc-data-model/
 
     """
 
@@ -399,18 +561,6 @@ class VerifiableCredentialSchema_V1(CredentialSchema_V1):
         required=True,
         metadata={
             "description": "The proof of the credential",
-            "example": {
-                "type": "Ed25519Signature2018",
-                "verificationMethod": (
-                    "did:key:z6Mkgg342Ycpuk263R9d8Aq6MUaxPn1DDeHyGo38Ee"
-                    "fXmgDL#z6Mkgg342Ycpuk263R9d8Aq6MUaxPn1DDeHyGo38EefXmgDL"
-                ),
-                "created": "2019-12-11T03:50:55",
-                "proofPurpose": "assertionMethod",
-                "jws": (
-                    "eyJhbGciOiAiRWREU0EiLCAiYjY0IjogZmFsc2UsICJjcml0JiNjQiXX0..lKJU0Df_k"
-                    "eblRKhZAS9Qq6zybm-HqUXNVZ8vgEPNTAjQKBhQDxvXNo7nvtUBb_Eq1Ch6YBKY5qBQ"
-                ),
-            },
+            "example": DATA_INTEGRITY_PROOF_EXAMPLE,
         },
     )

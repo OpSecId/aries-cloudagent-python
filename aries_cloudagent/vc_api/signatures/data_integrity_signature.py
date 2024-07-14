@@ -9,10 +9,10 @@ from dateutil import tz
 
 from ..resources.constants import SECURITY_CONTEXT_URL
 from ..document_loader import DocumentLoaderMethod
-from ..crypto import DataIntegrityProofException
+from ..signatures import DataIntegrityProof
+from ..signatures.error import DataIntegrityProofException
 from .purposes import _ProofPurpose as ProofPurpose
 from .validation_result import ProofResult
-from .data_integrity_proof import DataIntegrityProof
 
 
 class DataIntegritySignature(DataIntegrityProof, metaclass=ABCMeta):
@@ -57,7 +57,7 @@ class DataIntegritySignature(DataIntegrityProof, metaclass=ABCMeta):
         pass
 
     @abstractmethod
-    async def verify_signature(
+    async def verify_proof(
         self,
         *,
         verify_data: bytes,
@@ -138,7 +138,7 @@ class DataIntegritySignature(DataIntegrityProof, metaclass=ABCMeta):
             )
 
             # Verify signature on data
-            verified = await self.verify_signature(
+            verified = await self.verify_proof(
                 verify_data=verify_data,
                 verification_method=verification_method,
                 document=document,

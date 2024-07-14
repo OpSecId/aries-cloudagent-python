@@ -93,7 +93,6 @@ def diff_dict_keys(
                     context=context,
                 )
             )
-
         # If the key is present, but is a list, recursively check nested keys for entries
         elif isinstance(value, list):
             value, value_with_missing = _normalize(
@@ -106,19 +105,19 @@ def diff_dict_keys(
                 # Only check for nested list or dict. We're not checking for string values
                 if isinstance(nested_value, (dict, list)):
                     __prefix = f"{_prefix}[{i}]"
-
-                    nested_value, nested_with_missing = _normalize(
-                        nested_value, value_with_missing[i]
-                    )
-                    missing.extend(
-                        diff_dict_keys(
-                            nested_value,
-                            nested_with_missing,
-                            prefix=__prefix,
-                            document_loader=document_loader,
-                            context=context,
+                    if isinstance(value_with_missing[i], (list, dict)):
+                        nested_value, nested_with_missing = _normalize(
+                            nested_value, value_with_missing[i]
                         )
-                    )
+                        missing.extend(
+                            diff_dict_keys(
+                                nested_value,
+                                nested_with_missing,
+                                prefix=__prefix,
+                                document_loader=document_loader,
+                                context=context,
+                            )
+                        )
 
     return missing
 

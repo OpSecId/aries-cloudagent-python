@@ -14,7 +14,6 @@ from pyld.jsonld import JsonLdError, parse_link_header, LINK_HEADER_REL
 from ..cache.base import BaseCache
 from ..core.profile import Profile
 from ..resolver.did_resolver import DIDResolver
-from .crypto import DataIntegrityProofException
 
 from typing import Dict, Optional
 import urllib.parse as urllib_parse
@@ -33,6 +32,10 @@ logger = logging.getLogger(__name__)
 nest_asyncio.apply()
 
 
+class DocumentLoaderException(Exception):
+    """Base exception for document loader module."""
+
+
 class DocumentLoader:
     """JSON-LD document loader."""
 
@@ -47,8 +50,7 @@ class DocumentLoader:
         self.profile = profile
         self.resolver = profile.inject(DIDResolver)
         self.cache = profile.inject_or(BaseCache)
-        self.online_request_loader = pyld_aiohttp.aiohttp_document_loader()
-        # self.online_request_loader = pyld_requests.requests_document_loader()
+        self.online_request_loader = pyld_requests.requests_document_loader()
         self.requests_loader = StaticCacheJsonLdDownloader().load
         self.executor = concurrent.futures.ThreadPoolExecutor(max_workers=1)
         self.cache_ttl = cache_ttl
@@ -86,7 +88,7 @@ class DocumentLoader:
         elif url.startswith("http://") or url.startswith("https://"):
             document = self._load_http_document(url, options)
         else:
-            raise DataIntegrityProofException(
+            raise DocumentLoaderException(
                 "Unrecognized url format. Must start with "
                 "'did:', 'http://' or 'https://'"
             )
@@ -151,8 +153,10 @@ class StaticCacheJsonLdDownloader:
         "https://www.w3.org/ns/credentials/v2": "context/credentials_v2.jsonld",
         "https://www.w3.org/ns/did/v1": "context/did_documents_v1.jsonld",
         "https://w3id.org/security/v2": "context/security_v2.jsonld",
-        "https://w3id.org/security/data-integrity/v2": "context/data_integrity_v2.jsonld",
-        "https://w3id.org/security/suites/ed25519-2020/v1": "context/ed25519_2020.jsonld",
+        "https://w3id.org/security/jwk/v1": "context/security_jwk_v1.jsonld",
+        "https://w3id.org/security/multikey/v1": "context/security_multikey_v1.jsonld",
+        "https://w3id.org/security/data-integrity/v2": "context/security_data_integrity_v2.jsonld",
+        "https://w3id.org/security/suites/ed25519-2020/v1": "context/security_suites_ed25519_2020_v1.jsonld",
     }
 
     def __init__(

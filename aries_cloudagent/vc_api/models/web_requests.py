@@ -3,45 +3,55 @@
 from marshmallow import fields
 from ...messaging.models.openapi import OpenAPISchema
 from . import (
-    CredentialSchema_V1,
-    VerifiableCredentialSchema_V1,
-    CredentialSchema_V2,
-    VerifiableCredentialSchema_V2,
+    CredentialBaseSchema,
+    VerifiableCredentialBaseSchema,
     IssuanceOptionsSchema,
     VerificationOptionsSchema,
 )
 
 
+class IssueCredentialQueryStringSchema(OpenAPISchema):
+    """Parameters and validators for DID list request query string."""
+
+    suite = fields.Str(
+        required=False,
+        # validate=GENERIC_DID_VALIDATE,
+        metadata={
+            "description": "Cryptosuite to use with Data Integrity",
+            "example": "eddsa-jcs-2022",
+        },
+    )
+
+
 class ListCredentialsResponse(OpenAPISchema):
     """Response schema for listing credentials."""
 
-    results = [fields.Nested(VerifiableCredentialSchema_V1)]
+    results = [fields.Nested(VerifiableCredentialBaseSchema)]
 
 
 class FetchCredentialResponse(OpenAPISchema):
     """Response schema for fetching a credential."""
 
-    results = fields.Nested(VerifiableCredentialSchema_V1)
+    results = fields.Nested(VerifiableCredentialBaseSchema)
 
 
 class IssueCredentialRequest(OpenAPISchema):
     """Request schema for issuing a credential."""
 
-    # credential = fields.Nested(CredentialSchema_V1)
-    credential = fields.Nested(CredentialSchema_V2)
+    credential = fields.Nested(CredentialBaseSchema)
     options = fields.Nested(IssuanceOptionsSchema)
 
 
 class IssueCredentialResponse(OpenAPISchema):
     """Request schema for issuing a credential."""
 
-    verifiableCredential = fields.Nested(VerifiableCredentialSchema_V1)
+    verifiableCredential = fields.Nested(VerifiableCredentialBaseSchema)
 
 
 class VerifyCredentialRequest(OpenAPISchema):
     """Request schema for verifying a credential."""
 
-    verifiableCredential = fields.Nested(VerifiableCredentialSchema_V1)
+    verifiableCredential = fields.Nested(VerifiableCredentialBaseSchema)
     options = fields.Nested(VerificationOptionsSchema)
 
 

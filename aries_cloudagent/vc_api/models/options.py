@@ -23,16 +23,24 @@ class IssuanceOptions(BaseModel):
 
     def __init__(
         self,
+        cryptosuite: Optional[str] = None,
+        securing_mechanism: Optional[str] = None,
         verification_method: Optional[str] = None,
     ) -> None:
         """Initialize the IssuanceOptions instance."""
 
+        self.cryptosuite = cryptosuite
+        self.securing_mechanism = securing_mechanism
         self.verification_method = verification_method
 
     def __eq__(self, o: object) -> bool:
         """Check equality."""
         if isinstance(o, IssuanceOptions):
-            return self.verification_method == o.verification_method
+            return (
+                self.verification_method == o.verification_method
+                and self.securing_mechanism == o.securing_mechanism
+                and self.cryptosuite == o.cryptosuite
+            )
 
         return False
 
@@ -100,73 +108,26 @@ class IssuanceOptionsSchema(BaseModelSchema):
         },
     )
 
-    proof_type = fields.Str(
-        data_key="proofType",
+    securing_mechanism = fields.Str(
+        data_key="securingMechanism",
+        required=False,
+        metadata={
+            "description": ("The securing mechanism used for the proof."),
+            "example": "vc-data-integrity",
+        },
+    )
+
+    cryptosuite = fields.Str(
+        data_key="cryptosuite",
         required=False,
         metadata={
             "description": (
-                "The proof type used for the proof. Should match suites registered in"
-                " the Linked Data Cryptographic Suite Registry"
+                "The cryptosuite used for the proof. Should match suites registered in"
+                " the Data Integrity Specification"
             ),
-            "example": "Ed25519Signature2018",
+            "example": "Ed25519Signature2020",
         },
     )
-
-    proof_purpose = fields.Str(
-        data_key="proofPurpose",
-        required=False,
-        metadata={
-            "description": (
-                "The proof purpose used for the proof. Should match proof purposes"
-                " registered in the Linked Data Proofs Specification"
-            ),
-            "example": "assertionMethod",
-        },
-    )
-
-    created = fields.Str(
-        required=False,
-        validate=INDY_ISO8601_DATETIME_VALIDATE,
-        metadata={
-            "description": (
-                "The date and time of the proof (with a maximum accuracy in seconds)."
-                " Defaults to current system time"
-            ),
-            "example": INDY_ISO8601_DATETIME_EXAMPLE,
-        },
-    )
-
-    domain = fields.Str(
-        required=False,
-        metadata={
-            "description": "The intended domain of validity for the proof",
-            "example": "example.com",
-        },
-    )
-
-    challenge = fields.Str(
-        required=False,
-        metadata={
-            "description": (
-                "A challenge to include in the proof. SHOULD be provided by the"
-                " requesting party of the credential (=holder)"
-            ),
-            "example": UUID4_EXAMPLE,
-        },
-    )
-
-    # credential_status = fields.Nested(
-    #     CredentialStatusOptionsSchema(),
-    #     data_key="credentialStatus",
-    #     required=False,
-    #     metadata={
-    #         "description": (
-    #             "The credential status mechanism to use for the credential. Omitting"
-    #             " the property indicates the issued credential will not include a"
-    #             " credential status"
-    #         )
-    #     },
-    # )
 
 
 class VerificationOptionsSchema(BaseModelSchema):

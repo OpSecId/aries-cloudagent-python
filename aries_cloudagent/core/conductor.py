@@ -537,7 +537,12 @@ class Conductor:
             LOGGER.exception(
                 "An exception was caught while checking for wallet upgrades in progress"
             )
-
+        try:
+            await self.check_for_valid_w3c_vc_options(self.root_profile)
+        except Exception:
+            LOGGER.exception(
+                "An exception was caught while checking default w3c vc options"
+            )
         # notify protcols of startup status
         await self.root_profile.notify(STARTUP_EVENT_TOPIC, {})
 
@@ -877,3 +882,19 @@ class Conductor:
 
         else:
             await upgrade_wallet_to_anoncreds_if_requested(self.root_profile)
+
+    async def check_for_valid_w3c_vc_options(self, profile):
+        securing_mechanism = profile.settings.get("w3c_vc.securing_mechanism")
+        securing_mechanisms = ["vc-jose", "vc-di"]
+        if securing_mechanism not in securing_mechanisms:
+            raise StartupError(
+                f"The default W3C VC securing mechanism used must be one of {securing_mechanisms}"
+            )
+        cryptosuite = profile.settings.get("w3c_vc.di_cryptosuite")
+        cryptosuites = ["eddsa-jcs-2022", "eddsa-rdfc-2022", "Ed25519Signature2020"]
+        if cryptosuite not in cryptosuites:
+            raise StartupError(
+                f"The default W3C VC cryptosuite used must be one of {cryptosuites}"
+            )
+        status_list_server = profile.settings.get("w3c_vc.status_list_server")
+        # TODO test for url

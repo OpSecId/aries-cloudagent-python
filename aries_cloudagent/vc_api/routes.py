@@ -1,9 +1,10 @@
 """VC-API Routes."""
 
 from aiohttp import web
-from aiohttp_apispec import docs, request_schema, response_schema
+from aiohttp_apispec import docs, querystring_schema, request_schema, response_schema
 from marshmallow.exceptions import ValidationError
 from uuid_utils import uuid4
+from datetime import datetime
 
 from ..admin.decorators.auth import tenant_authentication
 from ..admin.request_context import AdminRequestContext
@@ -20,15 +21,17 @@ from .resources.constants import (
 
 # from .vc_ld.manager import VcLdpManager, ServiceError
 from .services import IssuerService, IssuerServiceError
+from .services import VerifierService, VerifierServiceError
 from .models import (
-    Credential_V1,
-    Credential_V2,
-    VerifiableCredential_V1,
+    CredentialBase,
+    VerifiableCredentialBase,
     IssuanceOptions,
+    VerificationOptions,
 )
 from .models.web_requests import (
     ListCredentialsResponse,
     FetchCredentialResponse,
+    IssueCredentialQueryStringSchema,
     IssueCredentialRequest,
     IssueCredentialResponse,
     VerifyCredentialRequest,
@@ -36,6 +39,7 @@ from .models.web_requests import (
 
 
 @docs(tags=["vc-api"], summary="Issue a credential")
+@querystring_schema(IssueCredentialQueryStringSchema())
 @request_schema(IssueCredentialRequest())
 @response_schema(IssueCredentialResponse(), 200, description="")
 @tenant_authentication
@@ -48,56 +52,63 @@ async def issue_credential_route(request: web.BaseRequest):
     """
     body = await request.json()
     context: AdminRequestContext = request["context"]
-    service = IssuerService(context.profile)
     try:
         credential = body["credential"]
-        if credential["@context"][0] == CREDENTIALS_CONTEXT_V1_URL and 'issuanceDate' not in credential:
-            pass
-
-        credential = (
-            Credential_V1.deserialize(credential)
-            if credential["@context"][0] == CREDENTIALS_CONTEXT_V1_URL
-            else Credential_V2.deserialize(credential)
-        )
+        if (
+            credential["@context"][0] == CREDENTIALS_CONTEXT_V1_URL
+            and "issuanceDate" not in credential
+        ):
+            # issuanceDate is a required field in VCDM 1.1
+            credential["issuanceDate"] = str(
+                datetime.now().isoformat("T", "seconds") + "Z"
+            )
 
         options = {} if "options" not in body else body["options"]
-        options = IssuanceOptions.deserialize(options)
+        options["cryptosuite"] = (
+            request.query.get("suite")
+            if request.query.get("suite")
+            else context.profile.settings.get("w3c_vc.di_cryptosuite")
+        )
 
-        vc = await service.issue(credential, options)
+        vc = await IssuerService(context.profile).issue_credential(
+            CredentialBase.deserialize(credential), IssuanceOptions.deserialize(options)
+        )
+
         return web.json_response({"verifiableCredential": vc}, status=201)
 
     except (ValidationError, IssuerServiceError, WalletError, InjectionError) as err:
         return web.json_response({"message": str(err)}, status=400)
 
 
-# @docs(tags=["vc-api"], summary="Verify a credential")
-# @request_schema(VerifyCredentialRequest())
-# # @response_schema(VerifyCredentialResponse(), 200, description="")
-# @tenant_authentication
-# async def verify_credential_route(request: web.BaseRequest):
-#     """Request handler for verifying a credential.
+@docs(tags=["vc-api"], summary="Verify a credential")
+@request_schema(VerifyCredentialRequest())
+# @response_schema(VerifyCredentialResponse(), 200, description="")
+@tenant_authentication
+async def verify_credential_route(request: web.BaseRequest):
+    """Request handler for verifying a credential.
 
-#     Args:
-#         request: aiohttp request object
+    Args:
+        request: aiohttp request object
 
-#     """
-#     body = await request.json()
-#     context: AdminRequestContext = request["context"]
-#     manager = VcLdpManager(context.profile)
-#     try:
-#         vc = VerifiableCredential.deserialize(body["verifiableCredential"])
-#         result = await manager.verify_credential(vc)
-#         result = result.serialize()
-#         return web.json_response(result)
-#     except (
-#         ValidationError,
-#         ServiceError,
-#         ResolverError,
-#         ValueError,
-#         WalletError,
-#         InjectionError,
-#     ) as err:
-#         return web.json_response({"message": str(err)}, status=400)
+    """
+    body = await request.json()
+    context: AdminRequestContext = request["context"]
+    verifier_svc = VerifierService(context.profile)
+    try:
+        options = {} if "options" not in body else body["options"]
+        options = VerificationOptions.deserialize(options)
+        vc = CredentialBase.deserialize(body["verifiableCredential"])
+        result = await verifier_svc.verify_credential(vc, options)
+        return web.json_response(result.serialize())
+    except (
+        ValidationError,
+        VerifierServiceError,
+        ResolverError,
+        ValueError,
+        WalletError,
+        InjectionError,
+    ) as err:
+        return web.json_response({"message": str(err)}, status=400)
 
 
 # @docs(tags=["vc-api"], summary="Store a credential")
@@ -219,8 +230,8 @@ async def register(app: web.Application):
             #     allow_head=False,
             # ),
             web.post("/vc/credentials/issue", issue_credential_route),
+            web.post("/vc/credentials/verify", verify_credential_route),
             # web.post("/vc/credentials/store", store_credential_route),
-            # web.post("/vc/credentials/verify", verify_credential_route),
             # web.post("/vc/presentations/prove", prove_presentation_route),
             # web.post("/vc/presentations/verify", verify_presentation_route),
         ]

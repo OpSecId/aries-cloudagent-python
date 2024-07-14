@@ -9,7 +9,9 @@ from typing_extensions import TypedDict
 from .check import get_properties_without_context
 from ..resources.constants import SECURITY_CONTEXT_URL
 from ..document_loader import DocumentLoaderMethod
-from ..crypto import DataIntegrityProofException
+
+# from ..signatures import DataIntegrityProofException, DataIntegrityProof
+from ..signatures.error import DataIntegrityProofException
 from .purposes import _ProofPurpose as ProofPurpose
 from .validation_result import ProofResult
 

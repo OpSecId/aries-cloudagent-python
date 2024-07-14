@@ -468,6 +468,58 @@ class DebugGroup(ArgumentGroup):
 
 
 @group(CAT_START)
+class DebugGroup(ArgumentGroup):
+    """W3C VC settings."""
+
+    GROUP_NAME = "W3C_VC"
+
+    def add_arguments(self, parser: ArgumentParser):
+        """Add W3C Verifiable Credential Data Model default options command line arguments to the parser."""
+        parser.add_argument(
+            "--w3c-vc-securing-mechanism",
+            type=str,
+            metavar="<w3c-vc-securing-mechanism>",
+            default="vc-di",
+            env_var="ACAPY_W3C_VC_SECURING_MECHANISM",
+            help=(
+                "The default Securing Mechanism specification to use."
+                "Must be vc-jose or vc-di. "
+                "This can be overwritten by options at issuance time."
+            ),
+        )
+        parser.add_argument(
+            "--w3c-vc-di-cryptosuite",
+            type=str,
+            metavar="<w3c-vc-di-cryptosuite>",
+            default="eddsa-jcs-2022",
+            env_var="ACAPY_W3C_VC_CRYPTOSUITE",
+            help=(
+                "The default Data Integrity cryptosuite to use."
+                "Must be eddsa-rdfc-2022 or eddsa-jcs-2022. "
+                "This can be overwritten by options at issuance time."
+            ),
+        )
+        parser.add_argument(
+            "--w3c-vc-status-list-server",
+            type=str,
+            metavar="<w3c-vc-status-list-server>",
+            env_var="ACAPY_W3C_VC_STATUS_LIST_SERVER",
+            help=("The statusList server to use."),
+        )
+
+    def get_settings(self, args: Namespace) -> dict:
+        """Extract debug settings."""
+        settings = {}
+        if args.w3c_vc_di_cryptosuite:
+            settings["w3c_vc.di_cryptosuite"] = args.w3c_vc_di_cryptosuite
+        if args.w3c_vc_securing_mechanism:
+            settings["w3c_vc.securing_mechanism"] = args.w3c_vc_securing_mechanism
+        if args.w3c_vc_status_list_server:
+            settings["w3c_vc.status_list_server"] = args.w3c_vc_status_list_server
+        return settings
+
+
+@group(CAT_START)
 class DiscoverFeaturesGroup(ArgumentGroup):
     """Discover Features settings."""
 

@@ -134,12 +134,14 @@ class DocumentVerificationResult(BaseModel):
         document: Optional[dict] = None,
         results: Optional[List[ProofResult]] = None,
         errors: Optional[List[str]] = None,
+        warnings: Optional[List[str]] = None,
     ) -> None:
         """Create new DocumentVerificationResult instance."""
         self.verified = verified
         self.document = document
         self.results = results
         self.errors = errors
+        self.warnings = warnings
 
     def __repr__(self) -> str:
         """Return a human readable representation of this class.
@@ -189,6 +191,22 @@ class DocumentVerificationResult(BaseModel):
                         )
                     )
                 )
+                # check warning list
+                and (
+                    # both not present
+                    (not self.warnings and not other.warnings)
+                    # both list and matching
+                    or (
+                        isinstance(self.warnings, list)
+                        and isinstance(other.warnings, list)
+                        and all(
+                            self_warning == other_warning
+                            for (self_warning, other_warning) in zip(
+                                self.warnings, other.warnings
+                            )
+                        )
+                    )
+                )
             )
         return False
 
@@ -204,4 +222,5 @@ class DocumentVerificationResultSchema(BaseModelSchema):
     verified = fields.Boolean(required=True)
     document = fields.Dict(required=False)
     results = fields.Nested(ProofResultSchema, many=True)
-    errors = fields.List(fields.Str(), required=False)
+    errors = fields.List(fields.Str(), required=True)
+    warnings = fields.List(fields.Str(), required=True)

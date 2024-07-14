@@ -24,6 +24,7 @@ class DIProof(BaseModel):
     def __init__(
         self,
         type: Optional[str] = None,
+        cryptosuite: Optional[str] = None,
         proof_purpose: Optional[str] = None,
         verification_method: Optional[str] = None,
         created: Optional[str] = None,
@@ -36,6 +37,7 @@ class DIProof(BaseModel):
         """Initialize the DIProof instance."""
 
         self.type = type
+        self.cryptosuite = cryptosuite
         self.proof_purpose = proof_purpose
         self.verification_method = verification_method
         self.created = created
@@ -49,7 +51,7 @@ class DIProof(BaseModel):
 class DataIntegrityProofSchema(BaseModelSchema):
     """Data Integrity proof schema.
 
-    Based on https://w3c-ccg.github.io/ld-proofs
+    Based on https://w3c.github.io/vc-data-integrity/
 
     """
 
@@ -66,8 +68,14 @@ class DataIntegrityProofSchema(BaseModelSchema):
                 "Identifies the digital signature suite that was used to create the"
                 " signature"
             ),
-            "example": "Ed25519Signature2020",
+            "example": "DataIntegrityProof",
         },
+    )
+
+    cryptosuite = fields.Str(
+        data_key="cryptosuite",
+        required=True,
+        metadata={"description": "Cryptosuite", "example": "eddsa-jcs-2022"},
     )
 
     proof_purpose = fields.Str(
@@ -101,6 +109,15 @@ class DataIntegrityProofSchema(BaseModelSchema):
         },
     )
 
+    proof_value = fields.Str(
+        required=True,
+        data_key="proofValue",
+        metadata={
+            "description": "The proof value of a proof",
+            "example": ("z5WSpZRTT...3p2PD"),
+        },
+    )
+
     domain = fields.Str(
         required=False,
         metadata={
@@ -119,18 +136,6 @@ class DataIntegrityProofSchema(BaseModelSchema):
                 " as authentication"
             ),
             "example": UUID4_EXAMPLE,
-        },
-    )
-
-    proof_value = fields.Str(
-        required=False,
-        data_key="proofValue",
-        metadata={
-            "description": "The proof value of a proof",
-            "example": (
-                "sy1AahqbzJQ63n9RtekmwzqZeVj494VppdAVJBnMYrTwft6cLJJGeTSSxCCJ6HKnR"
-                "twE7jjDh6sB2z2AAiZY9BBnCD8wUVgwqH3qchGRCuC2RugA4eQ9fUrR4Yuycac3caiaaay"
-            ),
         },
     )
 
