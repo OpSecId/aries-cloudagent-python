@@ -18,10 +18,14 @@ from .resources.constants import (
     CREDENTIALS_CONTEXT_V1_URL,
     CREDENTIALS_CONTEXT_V2_URL,
 )
-
-# from .vc_ld.manager import VcLdpManager, ServiceError
-from .services import IssuerService, IssuerServiceError
-from .services import VerifierService, VerifierServiceError
+from .services import (
+    IssuerService,
+    IssuerServiceError,
+    VerifierService,
+    VerifierServiceError,
+    StatusService,
+    StatusServiceError,
+)
 from .models import (
     CredentialBase,
     VerifiableCredentialBase,
@@ -31,6 +35,8 @@ from .models import (
 from .models.web_requests import (
     ListCredentialsResponse,
     FetchCredentialResponse,
+    CreateStatusCredentialRequest,
+    CreateStatusCredentialResponse,
     IssueCredentialQueryStringSchema,
     IssueCredentialRequest,
     IssueCredentialResponse,
@@ -39,9 +45,9 @@ from .models.web_requests import (
 
 
 @docs(tags=["vc-api"], summary="Issue a credential")
-@querystring_schema(IssueCredentialQueryStringSchema())
+# @querystring_schema(IssueCredentialQueryStringSchema())
 @request_schema(IssueCredentialRequest())
-@response_schema(IssueCredentialResponse(), 200, description="")
+@response_schema(IssueCredentialResponse(), 201, description="")
 @tenant_authentication
 async def issue_credential_route(request: web.BaseRequest):
     """Request handler for issuing a credential.
@@ -65,11 +71,23 @@ async def issue_credential_route(request: web.BaseRequest):
 
         options = {} if "options" not in body else body["options"]
         options["cryptosuite"] = (
-            request.query.get("suite")
-            if request.query.get("suite")
+            options["cryptosuite"]
+            if "cryptosuite" in options
+            else context.profile.settings.get("w3c_vc.di_cryptosuite")
+        )
+        options["type"] = (
+            "DataIntegrityProof"
+            if "cryptosuite" in options
             else context.profile.settings.get("w3c_vc.di_cryptosuite")
         )
 
+        if (
+            "credentialStatus" in options
+            and credential["@context"][0] == CREDENTIALS_CONTEXT_V2_URL
+        ):
+            credential["credentialStatus"] = await StatusService(
+                context.profile
+            ).create_status_entry(options["credentialStatus"]["statusPurpose"])
         vc = await IssuerService(context.profile).issue_credential(
             CredentialBase.deserialize(credential), IssuanceOptions.deserialize(options)
         )
@@ -93,13 +111,13 @@ async def verify_credential_route(request: web.BaseRequest):
     """
     body = await request.json()
     context: AdminRequestContext = request["context"]
-    verifier_svc = VerifierService(context.profile)
     try:
+        vc = body["verifiableCredential"]
         options = {} if "options" not in body else body["options"]
-        options = VerificationOptions.deserialize(options)
-        vc = CredentialBase.deserialize(body["verifiableCredential"])
-        result = await verifier_svc.verify_credential(vc, options)
-        return web.json_response(result.serialize())
+        result = await VerifierService(context.profile).verify_credential(
+            CredentialBase.deserialize(vc), VerificationOptions.deserialize(options)
+        )
+        return web.json_response(result)
     except (
         ValidationError,
         VerifierServiceError,
@@ -108,6 +126,40 @@ async def verify_credential_route(request: web.BaseRequest):
         WalletError,
         InjectionError,
     ) as err:
+        return web.json_response({"message": str(err)}, status=400)
+
+
+@docs(tags=["vc-api"], summary="Create status-list credential")
+@request_schema(CreateStatusCredentialRequest())
+@response_schema(CreateStatusCredentialResponse(), 201, description="")
+@tenant_authentication
+async def create_status_credential_route(request: web.BaseRequest):
+    """Request handler for creating a status credential.
+
+    Args:
+        request: aiohttp request object
+
+    """
+    body = await request.json()
+    context: AdminRequestContext = request["context"]
+    try:
+        status_credential = await StatusService(context.profile).create_status_list(
+            issuer=body["did"],
+            purpose=body["purpose"] if "purpose" in body else "revocation",
+            ttl=body["ttl"] if "ttl" in body else 300000,
+            length=body["length"] if "length" in body else 200000,
+        )
+        options = {
+            "verification_method": body["verification_method"],
+            "cryptosuite": "Ed25519Signature2020",
+        }
+        status_vc = await IssuerService(context.profile).issue_credential(
+            CredentialBase.deserialize(status_credential),
+            IssuanceOptions.deserialize(options),
+        )
+        return web.json_response({"statusCredential": status_vc}, status=201)
+
+    except (ValidationError, IssuerServiceError, WalletError, InjectionError) as err:
         return web.json_response({"message": str(err)}, status=400)
 
 
@@ -231,6 +283,7 @@ async def register(app: web.Application):
             # ),
             web.post("/vc/credentials/issue", issue_credential_route),
             web.post("/vc/credentials/verify", verify_credential_route),
+            web.post("/vc/status-list", create_status_credential_route),
             # web.post("/vc/credentials/store", store_credential_route),
             # web.post("/vc/presentations/prove", prove_presentation_route),
             # web.post("/vc/presentations/verify", verify_presentation_route),

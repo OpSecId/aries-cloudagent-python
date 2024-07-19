@@ -318,10 +318,10 @@ class VcLdpManager:
         document: Union[VerifiableCredential, VerifiablePresentation],
         options: LDProofVCOptions,
     ) -> LinkedDataProof:
-        if isinstance(document, VerifiableCredential):
-            issuer_id = document.issuer_id
-        elif isinstance(document, VerifiablePresentation):
-            issuer_id = document.holder_id
+        # if isinstance(document, VerifiableCredential):
+        issuer_id = document.issuer_id
+        # elif isinstance(document, VerifiablePresentation):
+        #     issuer_id = document.holder_id
 
         proof_type = options.proof_type
 

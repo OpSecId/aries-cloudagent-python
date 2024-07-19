@@ -13,7 +13,7 @@ from . import (
 class IssueCredentialQueryStringSchema(OpenAPISchema):
     """Parameters and validators for DID list request query string."""
 
-    suite = fields.Str(
+    cryptosuite = fields.Str(
         required=False,
         # validate=GENERIC_DID_VALIDATE,
         metadata={
@@ -33,6 +33,46 @@ class FetchCredentialResponse(OpenAPISchema):
     """Response schema for fetching a credential."""
 
     results = fields.Nested(VerifiableCredentialBaseSchema)
+
+
+class CreateStatusCredentialResponse(OpenAPISchema):
+    """Response schema for listing credentials."""
+
+    results = [fields.Nested(VerifiableCredentialBaseSchema)]
+
+
+class CreateStatusCredentialRequest(OpenAPISchema):
+    """Request schema for creating a status list credential."""
+
+    did = fields.Str(
+        required=True,
+        metadata={
+            "description": "",
+            "example": "did:key:",
+        },
+    )
+    verification_method = fields.Str(
+        alias="verificationMethod",
+        required=True,
+        metadata={
+            "description": "",
+            "example": "did:key:",
+        },
+    )
+    length = fields.Int(
+        required=False,
+        metadata={
+            "description": "",
+            "example": 200000,
+        },
+    )
+    purpose = fields.Int(
+        required=False,
+        metadata={
+            "description": "",
+            "example": "revocation",
+        },
+    )
 
 
 class IssueCredentialRequest(OpenAPISchema):

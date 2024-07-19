@@ -1,7 +1,7 @@
 """Ed25519Signature2020 cryptosuite."""
 
 from pyld import jsonld
-import hashlib
+from hashlib import sha256
 
 from typing import List
 
@@ -14,6 +14,7 @@ from ...resources.constants import (
     SECURITY_CONTEXT_ED25519_2020_URL,
 )
 
+
 class Ed25519Signature2020(DataIntegritySignature):
     """Ed25519Signature2020 suite."""
 
@@ -22,27 +23,19 @@ class Ed25519Signature2020(DataIntegritySignature):
 
         Args:
             key_pair (KeyPair): Key pair to use. Must provide EdDSA signatures
-            proof (dict, optional): A JSON-LD document with options to use for the
-                `proof` node (e.g. any other custom fields can be provided here
-                using a context different from security-v2).
-            verification_method (str, optional): A key id URL to the paired public key.
-            date (datetime, optional): Signing date to use.
+            document_loader (DocumentLoader): Document loader to use
         """
         super().__init__()
         self.key_pair = key_pair
         self.document_loader = document_loader
 
-    async def create_proof(self, unsecured_data_document, proof_config):
-        """https://www.w3.org/TR/vc-di-eddsa/#add-proof-ed25519signature2020"""
-        jsonld.set_document_loader(jsonld.requests_document_loader(timeout=100))
-        if SECURITY_CONTEXT_ED25519_2020_URL not in unsecured_data_document["@context"]:
-            unsecured_data_document["@context"].append(
-                SECURITY_CONTEXT_ED25519_2020_URL
-            )
+    async def _prep_input(self, unsecured_data_document, proof_config):
+
         try:
-            proof_config["type"] = proof_config.pop("cryptosuite")
             assert proof_config["type"] == "Ed25519Signature2020"
+
             """https://www.w3.org/TR/vc-di-eddsa/#transformation-ed25519signature2020"""
+            # Transform (normalize) document to canon rdf dataset w/ n-quads
             transformed_data_document = jsonld.normalize(
                 unsecured_data_document,
                 {
@@ -53,6 +46,8 @@ class Ed25519Signature2020(DataIntegritySignature):
             )
 
             """https://www.w3.org/TR/vc-di-eddsa/#proof-configuration-ed25519signature2020"""
+            # Transform (normalize) proof config to canon rdf dataset w/ n-quads
+            proof_config["@context"] = unsecured_data_document["@context"]
             canonical_proof_config = jsonld.normalize(
                 proof_config,
                 {
@@ -62,24 +57,41 @@ class Ed25519Signature2020(DataIntegritySignature):
                 },
             )
 
+            if transformed_data_document == "":
+                raise DataIntegrityProofException("Couldn't normalize input document")
+            if canonical_proof_config == "":
+                raise DataIntegrityProofException("Couldn't normalize proof config")
+
             """https://www.w3.org/TR/vc-di-eddsa/#hashing-ed25519signature2020"""
-            transformed_document_hash = (
-                hashlib.sha256(transformed_data_document.encode())
-                .hexdigest()
-                .encode("utf-8")
+            # Concatenate sha256 hash from both transformed inputs
+            hash_data = (
+                sha256(canonical_proof_config.encode("utf-8")).digest()
+                + sha256(transformed_data_document.encode("utf-8")).digest()
             )
-            proof_config_hash = (
-                hashlib.sha256(canonical_proof_config.encode()).hexdigest().encode("utf-8")
-            )
-            hash_data = transformed_document_hash + proof_config_hash
 
-            """https://www.w3.org/TR/vc-di-eddsa/#proof-serialization-ed25519signature2020"""
+            return hash_data
+        except:
+            raise DataIntegrityProofException()
+
+    async def create_proof(self, unsecured_data_document, proof_config):
+        """https://www.w3.org/TR/vc-di-eddsa/#add-proof-ed25519signature2020"""
+
+        # Add relevant context url if not present
+        if SECURITY_CONTEXT_ED25519_2020_URL not in unsecured_data_document["@context"]:
+            unsecured_data_document["@context"].append(
+                SECURITY_CONTEXT_ED25519_2020_URL
+            )
+        # Since Ed25519Signature2020 doesn't use the cryptosuite property,
+        # we map it to the type and ensure the correct value is set
+        proof_config["type"] = proof_config.pop("cryptosuite")
+        proof = proof_config.copy()
+        hash_data = await self._prep_input(unsecured_data_document, proof_config)
+
+        """https://www.w3.org/TR/vc-di-eddsa/#proof-serialization-ed25519signature2020"""
+        # Sign the bytes with eddsa key pair
+        try:
             proof_bytes = await self.key_pair.sign(hash_data)
-
-            proof = proof_config.copy()
-            proof.pop("@context")
             proof["proofValue"] = multibase.encode(proof_bytes, "base58btc")
-
             return proof
         except:
             raise DataIntegrityProofException()
@@ -101,15 +113,7 @@ class Ed25519Signature2020(DataIntegritySignature):
 
         return proof
 
-    async def verify_signature(
-        self,
-        *,
-        verify_data: List[bytes],
-        verification_method: dict,
-        document: dict,
-        proof: dict,
-        document_loader: DocumentLoader,
-    ) -> bool:
+    async def verify_proof(self, unsecured_data_document, proof) -> bool:
         """Verify the data against the proof.
 
         Args:
@@ -128,14 +132,10 @@ class Ed25519Signature2020(DataIntegritySignature):
             raise DataIntegrityProofException(
                 'The proof does not contain a valid "proofValue" property.'
             )
-
+        hash_data = await self._prep_input(unsecured_data_document, proof)
         signature = multibase.decode(proof["proofValue"])
 
-        # If the key pair has no public key yet, create a new key pair
-        # from the verification method. We don't want to overwrite data
-        # on the original key pair
-        key_pair = self.key_pair
-        if not key_pair.has_public_key:
-            key_pair = key_pair.from_verification_method(verification_method)
+        verification = await self.key_pair.verify(hash_data, signature)
 
-        return await key_pair.verify(verify_data, signature)
+        return verification
+        # return {}

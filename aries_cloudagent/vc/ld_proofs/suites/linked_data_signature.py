@@ -178,7 +178,6 @@ class LinkedDataSignature(LinkedDataProof, metaclass=ABCMeta):
             proof=proof, document=document, document_loader=document_loader
         )
         c14n_doc = self._canonize(input=document, document_loader=document_loader)
-
         # TODO: detect any dropped properties using expand/contract step
 
         return (

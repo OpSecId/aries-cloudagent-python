@@ -556,6 +556,15 @@ class VerifiableCredentialBaseSchema(CredentialBaseSchema):
 
     """
 
+    type = fields.List(
+        fields.Str(required=True),
+        required=True,
+        # validate=CREDENTIAL_TYPE_VALIDATE,
+        metadata={
+            "example": CREDENTIAL_TYPE_EXAMPLE,
+        },
+    )
+
     proof = fields.Nested(
         DataIntegrityProofSchema(),
         required=True,

@@ -1,7 +1,7 @@
 """EddsaJcs2022 cryptosuite."""
 
 from pyld import jsonld
-import hashlib
+from hashlib import sha256
 import canonicaljson
 
 from typing import List
@@ -11,6 +11,8 @@ from ...document_loader import DocumentLoader
 from ..keys import _KeyPair as KeyPair
 from ..data_integrity_signature import DataIntegritySignature
 from .. import DataIntegrityProofException
+from ...resources.constants import SECURITY_DATA_INTEGRITY_CONTEXT_V2_URL
+
 
 class EddsaJcs2022(DataIntegritySignature):
     """EddsaJcs2022 suite."""
@@ -27,8 +29,19 @@ class EddsaJcs2022(DataIntegritySignature):
 
     async def create_proof(self, unsecured_data_document, proof_config):
         """https://www.w3.org/TR/vc-di-eddsa/#create-proof-eddsa-jcs-2022"""
+        # Ensure the Data Integrity context is included
+        if (
+            SECURITY_DATA_INTEGRITY_CONTEXT_V2_URL
+            not in unsecured_data_document["@context"]
+        ):
+            unsecured_data_document["@context"].append(
+                SECURITY_DATA_INTEGRITY_CONTEXT_V2_URL
+            )
+        proof = proof_config.copy()
         try:
+
             """https://www.w3.org/TR/vc-di-eddsa/#proof-configuration-eddsa-jcs-2022"""
+            proof_config["@context"] = unsecured_data_document["@context"]
             assert proof_config["type"] == "DataIntegrityProof"
             assert proof_config["cryptosuite"] == "eddsa-jcs-2022"
             canonical_proof_config = canonicaljson.encode_canonical_json(proof_config)
@@ -40,18 +53,12 @@ class EddsaJcs2022(DataIntegritySignature):
 
             """https://www.w3.org/TR/vc-di-eddsa/#hashing-eddsa-jcs-2022"""
             hash_data = (
-                hashlib.sha256(transformed_data_document).digest()
-                + hashlib.sha256(canonical_proof_config).digest()
+                sha256(canonical_proof_config).digest()
+                + sha256(transformed_data_document).digest()
             )
 
             """https://www.w3.org/TR/vc-di-eddsa/#proof-serialization-eddsa-jcs-2022"""
             proof_bytes = await self.key_pair.sign(hash_data)
-            # proof_bytes = nacl.bindings.crypto_sign(hash_data, self.key_pair.secret_key)
-            # proof_bytes = proof_bytes[: nacl.bindings.crypto_sign_BYTES]
-            proof_value = multibase.encode(proof_bytes, "base58btc")
-
-            proof = proof_config.copy()
-            proof.pop("@context")
             proof["proofValue"] = multibase.encode(proof_bytes, "base58btc")
 
             return proof

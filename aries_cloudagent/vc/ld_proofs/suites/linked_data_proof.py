@@ -118,7 +118,6 @@ class LinkedDataProof(ABC):
                 f"{len(missing_properties)} attributes dropped. "
                 f"Provide definitions in context to correct. {missing_properties}"
             )
-
         return jsonld.normalize(
             input,
             {

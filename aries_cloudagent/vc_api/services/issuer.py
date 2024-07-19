@@ -16,7 +16,7 @@ from ..document_loader import DocumentLoader
 from ..signatures.keys.wallet_key_pair import WalletKeyPair
 from ..signatures.purposes.assertion_proof_purpose import AssertionProofPurpose
 from ..models import CredentialBase, VerifiableCredentialBase, IssuanceOptions, DIProof
-from datetime import datetime
+from datetime import datetime, timezone
 from ..signatures.cryptosuites import CRYPTOSUITES
 
 
@@ -73,9 +73,6 @@ class IssuerService:
 
     async def _sign_vc_di(self, credential: CredentialBase, options: IssuanceOptions):
         """Sign a VC with Data Integrity."""
-        # Ensure the Data Integrity context is included
-        if SECURITY_DATA_INTEGRITY_CONTEXT_V2_URL not in credential.context_urls:
-            credential.add_context(SECURITY_DATA_INTEGRITY_CONTEXT_V2_URL)
 
         # Get issuer information stored in the wallet
         async with self.profile.session() as session:
@@ -101,13 +98,13 @@ class IssuerService:
         proof = await suite.create_proof(
             unsecured_data_document=unsecured_document,
             proof_config={
-                "@context": credential.context,
+                # "@context": credential.context,
                 "type": "DataIntegrityProof",
                 # TODO convert timestamp offset
-                "created": str(datetime.now().isoformat("T", "seconds")) + "Z",
-                "cryptosuite": options.cryptosuite,
                 "proofPurpose": "assertionMethod",
                 "verificationMethod": options.verification_method,
+                "created": str(datetime.now(timezone.utc).isoformat("T", "seconds")),
+                "cryptosuite": options.cryptosuite,
             },
         )
         secured_data_document = unsecured_document.copy()
