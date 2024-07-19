@@ -3,12 +3,7 @@
 from pyld import jsonld
 from hashlib import sha256
 
-from typing import List
-
 import nacl
-from nacl.encoding import HexEncoder
-from nacl.signing import VerifyKey
-from nacl.exceptions import BadSignatureError
 
 from ....utils.multiformats import multibase
 from ...document_loader import DocumentLoader
@@ -113,7 +108,7 @@ class EddsaRdfc2022(DataIntegritySignature):
 
         return proof
 
-    async def verify_proof(self, unsecured_data_document, proof) -> bool:
+    async def verify_proof(self, unsecured_data_document, proof):
         """Verify the data against the proof.
 
         Args:
@@ -121,7 +116,7 @@ class EddsaRdfc2022(DataIntegritySignature):
             proof (dict): The proof to check
 
         Returns:
-            bool: Whether the signature is valid for the data
+            verificationResponse: Whether the signature is valid for the data and a problemDetail object
 
         """
 
@@ -134,28 +129,25 @@ class EddsaRdfc2022(DataIntegritySignature):
         signature = multibase.decode(proof_value)
         
         did = proof["verificationMethod"].split('#')[0]
+        # only DID key for now
         if did.split(':')[1] == 'key':
             pub_key = multibase.decode(did.split(':')[-1])
             pub_key = bytes(bytearray(pub_key)[2:])
+        elif did.split(':')[1] == 'web':
+            pass
             
         try:
             nacl.bindings.crypto_sign_open(signature + hash_data, pub_key)
-            # VerifyKey(key=pub_key.hex()[2:], encoder=HexEncoder).verify(smessage=hash_data)
-        except BadSignatureError:
+        except nacl.exceptions.BadSignatureError:
             problem_detail = {
                 'type': 'https://www.w3.org/TR/vc-data-model#CRYPTOGRAPHIC_SECURITY_ERROR',
                 'code': '-65',
                 'title': 'BadSignatureError',
-                'detail': 'Signature was forged or corrupt'
+                'detail': 'Signature was forged or corrupt.'
             }
             return {
                 'verified': False,
-                'problem_detail':{
-                    'type': 'https://www.w3.org/TR/vc-data-model#CRYPTOGRAPHIC_SECURITY_ERROR',
-                    'code': '-65',
-                    'title': 'BadSignatureError',
-                    'detail': 'Signature was forged or corrupt'
-                }
+                'problem_detail': problem_detail
             }
         return {
                 'verified': True,
