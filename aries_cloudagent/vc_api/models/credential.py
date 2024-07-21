@@ -1,7 +1,7 @@
 """Verifiable Credential marshmallow schema classes."""
 
 from datetime import datetime
-from typing import List, Optional, Union
+from typing import List, Optional, Union, Dict
 
 from dateutil import tz
 from marshmallow import INCLUDE, ValidationError, fields, post_dump
@@ -9,6 +9,7 @@ from marshmallow import INCLUDE, ValidationError, fields, post_dump
 from ...messaging.models.base import BaseModel, BaseModelSchema
 from ...messaging.valid import (
     DictOrDictListField,
+    StrOrDictOrListDictField,
     DIDKey,
     StrOrDictField,
     Uri,
@@ -64,6 +65,8 @@ class CredentialBase(BaseModel):
         id: Optional[str] = None,
         type: Optional[List[str]] = None,
         issuer: Optional[Union[dict, str]] = None,
+        name: Optional[str] = None,
+        description: Optional[str] = None,
         valid_from: Optional[str] = None,
         valid_until: Optional[str] = None,
         issuance_date: Optional[str] = None,
@@ -83,6 +86,8 @@ class CredentialBase(BaseModel):
         self._id = id
         self._type = type
         self._issuer = issuer
+        self._name = name
+        self._description = description
         self._valid_from = valid_from
         self._valid_until = valid_until
         self._issuance_date = issuance_date
@@ -194,6 +199,29 @@ class CredentialBase(BaseModel):
         uri_validator(issuer_id)
 
         self._issuer = issuer
+
+    @property
+    def name(self):
+        """Getter for name."""
+        return self._name
+
+    @name.setter
+    def name(self, name: Union[str, dict]):
+        """Setter for name."""
+        if isinstance(name, dict):
+            pass
+
+        self._name = name
+
+    @property
+    def description(self):
+        """Getter for description."""
+        return self._description
+
+    @description.setter
+    def description(self, description: Union[str, Dict[str, str], List[dict]]):
+        """Setter for description."""
+        self._description = description
 
     @property
     def valid_from(self):
@@ -338,6 +366,8 @@ class CredentialBase(BaseModel):
                 and self.id == o.id
                 and self.type == o.type
                 and self.issuer == o.issuer
+                and self.name == o.name
+                and self.description == o.description
                 and self.valid_from == o.valid_from
                 and self.valid_until == o.valid_until
                 and self.issuance_date == o.issuance_date
@@ -405,6 +435,14 @@ class CredentialBaseSchema(BaseModelSchema):
             ),
             "example": DIDKey.EXAMPLE,
         },
+    )
+
+    name = StrOrDictOrListDictField(
+        required=False
+    )
+
+    description = StrOrDictOrListDictField(
+        required=False
     )
 
     valid_from = fields.Str(
@@ -516,6 +554,8 @@ class VerifiableCredentialBase(CredentialBase):
         id: Optional[str] = None,
         type: Optional[List[str]] = None,
         issuer: Optional[Union[dict, str]] = None,
+        name: Optional[str] = None,
+        description: Optional[str] = None,
         valid_from: Optional[str] = None,
         valid_until: Optional[str] = None,
         issuance_date: Optional[str] = None,
@@ -534,6 +574,8 @@ class VerifiableCredentialBase(CredentialBase):
         self._id = id
         self._type = type
         self._issuer = issuer
+        self._name = name
+        self._description = description
         self._valid_from = valid_from
         self._valid_until = valid_until
         self._issuance_date = issuance_date

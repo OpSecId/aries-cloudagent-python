@@ -1,5 +1,5 @@
-from .data_integrity_proof import DataIntegrityProof
-from .data_integrity_signature import DataIntegritySignature
+from .di_proof import DataIntegrityProof
+from .di_signature import DataIntegritySignature
 
 # from .error import DataIntegrityProofException
 

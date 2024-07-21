@@ -48,6 +48,7 @@ class StatusService:
         ttl=300000,
         length=200000,
     ):
+
         # https://www.w3.org/TR/vc-bitstring-status-list/#example-example-bitstringstatuslistcredential
         status_list_credential = {
             "@context": ["https://www.w3.org/ns/credentials/v2"],
@@ -63,6 +64,8 @@ class StatusService:
         return status_list_credential
 
     async def create_status_entry(self, purpose):
+        if not self.profile.settings.get("w3c_vc.status_list_server"):
+            raise StatusServiceError("Missing status list server.")
         # https://www.w3.org/TR/vc-bitstring-status-list/#example-example-statuslistcredential
         # Find unoccupied index
         entry = {

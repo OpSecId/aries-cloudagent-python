@@ -64,13 +64,27 @@ class VerificationOptions(BaseModel):
 
     def __init__(
         self,
+        checks: Optional[list] = None,
+        domain: Optional[str] = None,
+        challenge: Optional[str] = None,
+        expected_proof_purpose: Optional[str] = None,
     ) -> None:
         """Initialize the VerificationOptions instance."""
+
+        self.checks = checks
+        self.domain = domain
+        self.challenge = challenge
+        self.expected_proof_purpose = expected_proof_purpose
 
     def __eq__(self, o: object) -> bool:
         """Check equality."""
         if isinstance(o, VerificationOptions):
-            return ()
+            return (
+                self.checks == o.checks
+                and self.domain == o.domain
+                and self.challenge == o.challenge
+                and self.expected_proof_purpose == o.expected_proof_purpose
+            )
 
         return False
 
@@ -177,3 +191,24 @@ class VerificationOptionsSchema(BaseModelSchema):
 
         unknown = INCLUDE
         model_class = VerificationOptions
+
+    checks = fields.List(
+        fields.Str(),
+        data_key="checks",
+        required=False
+    )
+
+    domain = fields.Str(
+        data_key="domain",
+        required=False
+    )
+
+    challenge = fields.Str(
+        data_key="challenge",
+        required=False
+    )
+
+    expected_proof_purpose = fields.Str(
+        data_key="expectedProofPurpose",
+        required=False
+    )

@@ -11,37 +11,27 @@ from ..resources.constants import SECURITY_CONTEXT_URL
 from ..document_loader import DocumentLoaderMethod
 
 # from ..signatures import DataIntegrityProofException, DataIntegrityProof
-from ..signatures.error import DataIntegrityProofException
+from .error import DataIntegrityProofException
 from .purposes import _ProofPurpose as ProofPurpose
 from .validation_result import ProofResult
-
-
-class DeriveProofResult(TypedDict):
-    """Result dict for deriving a proof."""
-
-    document: dict
-    proof: Union[dict, List[dict]]
 
 
 class DataIntegrityProof(ABC):
     """Base Linked data proof."""
 
-    signature_type: ClassVar[str]
-
     def __init__(
         self,
         *,
-        proof: Optional[dict] = None,
-        supported_derive_proof_types: Optional[List[str]] = None,
+        proof_config: Optional[dict] = None,
     ):
         """Initialize new DataIntegrityProof instance."""
-        self.proof = proof
-        self.supported_derive_proof_types = supported_derive_proof_types
+        self.proof_config = proof_config
 
-    async def create_proof(
+    async def add_proof(
         self,
         *,
         document: dict,
+        proof_config: dict,
         purpose: ProofPurpose,
         document_loader: DocumentLoaderMethod,
     ) -> dict:
@@ -82,32 +72,6 @@ class DataIntegrityProof(ABC):
         """
         raise DataIntegrityProofException(
             f"{self.signature_type} signature suite does not support verifying proofs"
-        )
-
-    async def derive_proof(
-        self,
-        *,
-        proof: dict,
-        document: dict,
-        reveal_document: dict,
-        document_loader: DocumentLoaderMethod,
-        nonce: Optional[bytes] = None,
-    ) -> DeriveProofResult:
-        """Derive proof for document, returning derived document and proof.
-
-        Args:
-            proof (dict): The proof to derive from
-            document (dict): The document to derive the proof for
-            reveal_document (dict): The JSON-LD frame the revealed attributes
-            document_loader (DocumentLoader): Document loader used for resolving
-            nonce (bytes, optional): Nonce to use for the proof. Defaults to None.
-
-        Returns:
-            DeriveProofResult: The derived document and proof
-
-        """
-        raise DataIntegrityProofException(
-            f"{self.signature_type} signature suite does not support deriving proofs"
         )
 
     def _canonize(self, *, input, document_loader: DocumentLoaderMethod) -> str:

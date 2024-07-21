@@ -3,6 +3,7 @@
 from marshmallow import fields
 from ...messaging.models.openapi import OpenAPISchema
 from . import (
+    PresentationBaseSchema,
     CredentialBaseSchema,
     VerifiableCredentialBaseSchema,
     IssuanceOptionsSchema,
@@ -114,11 +115,18 @@ class VerifyCredentialRequest(OpenAPISchema):
 #     verifiablePresentation = fields.Nested(VerifiablePresentationSchema)
 
 
-# class VerifyPresentationRequest(OpenAPISchema):
-#     """Request schema for verifying a credential."""
+class CreatePresentationRequest(OpenAPISchema):
+    """Request schema for verifying a credential."""
 
-#     verifiablePresentation = fields.Nested(VerifiablePresentationSchema)
-#     options = fields.Nested(LDProofVCOptionsSchema)
+    presentation = fields.Nested(PresentationBaseSchema)
+    options = fields.Nested(IssuanceOptionsSchema)
+
+
+class VerifyPresentationRequest(OpenAPISchema):
+    """Request schema for verifying a credential."""
+
+    verifiablePresentation = fields.Nested(PresentationBaseSchema)
+    options = fields.Nested(VerificationOptionsSchema)
 
 
 # class VerifyPresentationResponse(OpenAPISchema):

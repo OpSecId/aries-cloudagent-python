@@ -4,6 +4,10 @@ from .credential import (
     VerifiableCredentialBase,
     VerifiableCredentialBaseSchema,
 )
+from .presentation import (
+    PresentationBase,
+    PresentationBaseSchema,
+)
 from .proof import (
     DIProof,
     DataIntegrityProofSchema,
@@ -18,6 +22,8 @@ from .options import (
 __all__ = [
     "CredentialBase",
     "CredentialBaseSchema",
+    "PresentationBase",
+    "PresentationBaseSchema",
     "VerifiableCredentialBase",
     "VerifiableCredentialBaseSchema",
     "DIProof",

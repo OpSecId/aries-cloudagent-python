@@ -894,6 +894,7 @@ class LedgerGroup(ArgumentGroup):
             ),
         )
         parser.add_argument(
+            "-nl",
             "--no-ledger",
             action="store_true",
             env_var="ACAPY_NO_LEDGER",
@@ -1328,6 +1329,7 @@ class TransportGroup(ArgumentGroup):
     def add_arguments(self, parser: ArgumentParser):
         """Add transport-specific command line arguments to the parser."""
         parser.add_argument(
+            "-nt",
             "--no-transport",
             dest="no_transport",
             action="store_true",

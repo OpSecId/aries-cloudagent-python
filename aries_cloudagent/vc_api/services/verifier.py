@@ -3,20 +3,18 @@ from pyld.jsonld import JsonLdProcessor
 from ...core.profile import Profile
 from ..models import (
     CredentialBase,
+    PresentationBase,
     VerifiableCredentialBase,
     VerifiableCredentialBaseSchema,
     VerificationOptions,
     DIProof,
 )
-from ...wallet.key_type import ED25519, KeyType
-from ..signatures.keys.wallet_key_pair import WalletKeyPair
-from ..signatures import DataIntegrityProofException, DataIntegrityProof
-from ..signatures.purposes.assertion_proof_purpose import AssertionProofPurpose
-from ..signatures.cryptosuites.ed25519_signature_2020 import Ed25519Signature2020
+from ..crypto.keys.wallet_key_pair import WalletKeyPair
+from ..crypto.purposes.assertion_proof_purpose import AssertionProofPurpose
+
 from ..document_loader import DocumentLoader
-from ..signatures.validation_result import DocumentVerificationResult
-from ..signatures.cryptosuites import CRYPTOSUITES
-import base64
+from ..crypto.validation_result import DocumentVerificationResult
+from ..crypto.suites import CRYPTOSUITES
 
 
 class VerifierServiceError(Exception):
@@ -35,42 +33,95 @@ class VerifierService:
     ) -> DocumentVerificationResult:
         # Instantiate cryptosuite class
         proof = vc.pop("proof")
-        suite = CRYPTOSUITES[options.cryptosuite](
-            key_pair=WalletKeyPair(
-                profile=self.profile,
-                key_type=CRYPTOSUITES[vc.proof.cryptosuite]["key_type"],
-            ).from_verification_method(vc.proof.verification_method)
-        )
+        try:
+            suite = CRYPTOSUITES[options.cryptosuite](
+                key_pair=WalletKeyPair(
+                    profile=self.profile,
+                    key_type=CRYPTOSUITES[vc.proof.cryptosuite]["key_type"],
+                ).from_verification_method(vc.proof.verification_method)
+            )
+        except:
+            raise VerifierServiceError('Invalid cryptosuite')
         verification = suite.verify_proof(vc.serialize())
         return verification
+    
+    async def _validate_proof(self, proof, options):
+
+        if options.expected_proof_purpose \
+            and options.expected_proof_purpose != proof.proof_purpose:
+            raise VerifierServiceError("Unexpected proof purpose")
+
+        if (options.domain and proof.domain) \
+            and options.domain != proof.domain:
+            raise VerifierServiceError("Domain mismatch")
+
+        if (options.challenge and proof.challenge) \
+            and options.challenge != proof.challenge:
+            raise VerifierServiceError("Challenge mismatch")
+        
+        if proof.proof_value:
+            pass
+    
+    async def _get_crypto_suite(self, proof):
+
+        if proof.type == "DataIntegrityProof":
+            if not proof.cryptosuite:
+                raise VerifierServiceError("Missing cryptosuite for DataIntegrityProof")
+            suite_label = proof.cryptosuite
+
+        elif proof.type in ["Ed25519Signature2020"]:
+            suite_label = proof.type
+        try:
+            return CRYPTOSUITES[suite_label]["suite"](
+                document_loader=DocumentLoader(self.profile),
+            )
+        except:
+            raise VerifierServiceError('Invalid cryptosuite')
 
     async def verify_credential(
         self, vc: VerifiableCredentialBase, options: VerificationOptions
     ) -> DocumentVerificationResult:
         """Verify a Verifiable Credential."""
 
-        if not vc.issuer_id:
-            raise VerifierServiceError("VC issuer id is required")
-
-        if not vc.credential_subject:
-            raise VerifierServiceError("Credential subject is required")
+        credential = vc.serialize().copy()
+        proof = credential.pop('proof', None)
+        
+        verification_result = {
+            "verified": False,
+            "verifiedDocument": credential,
+            "errors": [],
+            "warnings": [],
+        }
 
         # validation_errors = VerifiableCredentialBaseSchema().validate(vc)
         # if len(validation_errors) > 0:
         #     raise DataIntegrityProofException(
         #         f"Unable to verify credential with invalid structure: {validation_errors}"
         #     )
+        
+        if not vc.issuer_id:
+            raise VerifierServiceError("VC issuer id is required")
 
-        credential = vc.serialize().copy()
-        proof = credential.pop("proof", None)
+        if not vc.credential_subject:
+            raise VerifierServiceError("Credential subject is required")
 
-        verification_result = {
-            "verified": False,
-            "verifiedDocument": credential,
-            "mediaType": None,
-            "errors": [],
-            "warnings": [],
-        }
+        if not vc.proof.verification_method:
+            raise VerifierServiceError("Verification method subject is required")
+        
+        await self._validate_proof(vc.proof, options)
+        
+        # if 'EnvelopedVerifiableCredential' in vc.type:
+        #     credential_b64 = vc.id.split(';')[-1]
+        #     credential = base64.urlsafe_b64decode(credential_b64.encode()).decode()
+        
+        suite = await self._get_crypto_suite(vc.proof)
+        
+        proof_verification = await suite.verify_proof(credential, proof)
+
+        verification_result["verified"] = proof_verification["verified"]
+
+        if proof_verification["problem_detail"]:
+            verification_result["errors"].append(proof_verification["problem_detail"])
 
         if "credentialStatus" in credential:
             pass
@@ -81,86 +132,49 @@ class VerifierService:
         if "validUntil" in credential:
             pass
 
-        # if 'EnvelopedVerifiableCredential' in vc.type:
-        #     credential_b64 = vc.id.split(';')[-1]
-        #     credential = base64.urlsafe_b64decode(credential_b64.encode()).decode()
-
-        if proof["type"] == "DataIntegrityProof":
-            if "cryptosuite" not in proof:
-                raise VerifierServiceError("Missing cryptosuite for DataIntegrityProof")
-            suite = CRYPTOSUITES[proof['cryptosuite']]["suite"](
-                document_loader=DocumentLoader(self.profile),
-            )
-            
-            proof_verification = await suite.verify_proof(credential, proof)
-
-            verification_result['verified'] = proof_verification['verified']
-            if proof_verification['problem_detail']:
-                verification_result['errors'].append(proof_verification['problem_detail'])
-        # if proof["type"] in ["Ed25519Signature2020"]:
-        #     suite = CRYPTOSUITES[proof["type"]]["suite"](
-        #         key_pair=WalletKeyPair(
-        #             profile=self.profile,
-        #             key_type=CRYPTOSUITES[proof["type"]]["key_type"],
-        #         ).from_verification_method(proof["verificationMethod"]),
-        #         document_loader=DocumentLoader(self.profile),
-        #     )
-
-        #     verification = suite.verify_proof(credential, proof)
-        # return verification
         return verification_result
 
-        # raise VerifierServiceError(f"Invalid VC type")
+    async def verify_presentation(
+        self, vp: PresentationBase, options: VerificationOptions
+    ) -> DocumentVerificationResult:
+        """Verify a Verifiable Credential."""
 
-        # try:
+        presentation = vp.serialize().copy()
+        proof = presentation.pop('proof', None)
+        
+        verification_result = {
+            "verified": False,
+            "verifiedDocument": presentation,
+            "errors": [],
+            "warnings": [],
+        }
 
-        #     # proof_set = JsonLdProcessor.get_values(vc, "proof")
-        #     proof_set = [vc["proof"]] if isinstance(vc["proof"], dict) else vc["proof"]
-        #     if len(proof_set) == 0:
-        #         raise DataIntegrityProofException(
-        #             "No matching proofs found in the given document"
-        #         )
-        #     proof_set = [{"@context": vc["@context"], **proof} for proof in proof_set]
-
-        #     # if not purpose:
-        #     purpose = AssertionProofPurpose()
-
-        #     matches = [proof for proof in proof_set if purpose.match(proof)]
-
-        #     if len(matches) == 0:
-        #         return []
-
-        #     results = []
-        #     suites = [
-        #         # Satisfy type checks with a cast to LinkedDataProof
-        #         cast(
-        #             DataIntegrityProof,
-        #             # Instantiate suite with a key type
-        #             SuiteClass(
-        #                 key_pair=WalletKeyPair(profile=self.profile, key_type=key_type),
-        #             ),
-        #         )
-        #         # for each suite class -> key_type pair from PROOF_KEY_TYPE_MAPPING
-        #         for SuiteClass, key_type in PROOF_KEY_TYPE_MAPPING.items()
-        #     ]
-        #     for proof in matches:
-        #         for suite in suites:
-        #             if suite.match_proof(proof["type"]):
-        #                 result = await suite.verify_proof(
-        #                     proof=proof,
-        #                     document=vc,
-        #                     purpose=purpose,
-        #                     document_loader=DocumentLoader(self.profile),
-        #                 )
-        #                 result.proof = proof
-        #                 results.append(result)
-        #                 errors.append(result.error)
-        #     verified = True if len(errors) == 0 else False
-        #     return DocumentVerificationResult(
-        #         verified=verified, document=credential, errors=errors, warnings=warnings
+        # validation_errors = VerifiableCredentialBaseSchema().validate(vc)
+        # if len(validation_errors) > 0:
+        #     raise DataIntegrityProofException(
+        #         f"Unable to verify credential with invalid structure: {validation_errors}"
         #     )
-        # except Exception as e:
-        #     errors.append(e)
-        #     return DocumentVerificationResult(
-        #         verified=False, document=credential, errors=errors, warnings=warnings
-        #     )
+
+        if vp.verifiable_credential:
+            credentials = [vp.verifiable_credential] if isinstance(vp.verifiable_credential, dict) else vp.verifiable_credential
+            for credential in credentials:
+                try:
+                    CredentialBase.deserialize(credential)
+                except:
+                    raise VerifierServiceError("Credential subject is required")
+
+        if not vp.proof.verification_method:
+            raise VerifierServiceError("Verification method subject is required")
+        
+        await self._validate_proof(vp.proof, options)
+        
+        suite = self._get_crypto_suite(vp.proof)
+        
+        proof_verification = await suite.verify_proof(presentation, proof)
+
+        verification_result["verified"] = proof_verification["verified"]
+
+        if proof_verification["problem_detail"]:
+            verification_result["errors"].append(proof_verification["problem_detail"])
+
+        return verification_result

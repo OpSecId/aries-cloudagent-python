@@ -20,11 +20,23 @@ EXAMPLE_TIMESTAMP = 1640995199  # 2021-12-31 23:59:59Z
 
 
 class StrOrDictField(Field):
-    """URI or Dict field for Marshmallow."""
+    """Str or Dict field for Marshmallow."""
 
     def _deserialize(self, value, attr, data, **kwargs):
         if not isinstance(value, (str, dict)):
             raise ValidationError("Field should be str or dict")
+        return super()._deserialize(value, attr, data, **kwargs)
+
+
+class StrOrDictOrListDictField(Field):
+    """Str or Dict of Listfield for Marshmallow."""
+
+    def _deserialize(self, value, attr, data, **kwargs):
+        if not isinstance(value, (str, dict)):
+            if not isinstance(value, list) or not all(
+                isinstance(item, dict) for item in value
+            ):
+                raise ValidationError("Field should be str or dict or list of dict")
         return super()._deserialize(value, attr, data, **kwargs)
 
 

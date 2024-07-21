@@ -74,7 +74,7 @@ class DataIntegrityProofSchema(BaseModelSchema):
 
     cryptosuite = fields.Str(
         data_key="cryptosuite",
-        required=True,
+        required=False,
         metadata={"description": "Cryptosuite", "example": "eddsa-jcs-2022"},
     )
 

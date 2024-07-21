@@ -9,15 +9,24 @@ from pyld.jsonld import JsonLdProcessor
 from ...core.profile import Profile
 from ...wallet.base import BaseWallet
 from ...wallet.default_verification_key_strategy import BaseVerificationKeyStrategy
-from ...wallet.did_info import DIDInfo
 from ...wallet.jwt import jwt_sign
-from ..resources.constants import SECURITY_DATA_INTEGRITY_CONTEXT_V2_URL
+from ..resources.constants import (
+    CREDENTIALS_CONTEXT_V1_URL,
+    CREDENTIALS_CONTEXT_V2_URL,
+)
 from ..document_loader import DocumentLoader
-from ..signatures.keys.wallet_key_pair import WalletKeyPair
-from ..signatures.purposes.assertion_proof_purpose import AssertionProofPurpose
-from ..models import CredentialBase, VerifiableCredentialBase, IssuanceOptions, DIProof
+from ..crypto.keys.wallet_key_pair import WalletKeyPair
+from ..crypto.purposes.assertion_proof_purpose import AssertionProofPurpose
+from ..models import CredentialBase, VerifiableCredentialBase, IssuanceOptions
 from datetime import datetime, timezone
-from ..signatures.cryptosuites import CRYPTOSUITES
+from ..crypto.suites import CRYPTOSUITES
+
+# from ..services import (
+#     StatusService,
+# )
+from ..services.status import (
+    StatusService,
+)
 
 
 class IssuerServiceError(Exception):
@@ -36,12 +45,11 @@ class IssuerService:
     ) -> VerifiableCredentialBase:
         """Prepare credential for issuance."""
 
+        # Ensure the Credential has a issuer id
         if not credential.issuer_id:
             raise IssuerServiceError("Credential issuer id is required")
 
-        if not credential.credential_subject:
-            raise IssuerServiceError("Credential subject is required")
-
+        # Derive the verification method from the options or the issuer id value
         options.verification_method = (
             options.verification_method
             if options.verification_method
@@ -52,6 +60,30 @@ class IssuerService:
             )
         )
 
+        # Ensure the Credential has at least 1 credential subject entry
+        if not credential.credential_subject:
+            raise IssuerServiceError("Credential subject is required")
+
+        # If using the VCDM 1.1, add the required issuanceDate if not provided
+        if (
+            credential.context[0] == CREDENTIALS_CONTEXT_V1_URL
+            and not credential.issuance_date
+        ):
+            credential.issuance_date = str(
+                datetime.now(timezone.utc).isoformat("T", "seconds")
+            )
+
+        # Add status information if requested
+        # Only supported for VCDM 2.0 w/ BitstringStatusList
+        if (
+            options.credential_status
+            and credential.context[0] == CREDENTIALS_CONTEXT_V2_URL
+        ):
+            credential._credential_status = await StatusService(
+                self.profile
+            ).create_status_entry(options.credential_status["statusPurpose"])
+
+        # Ensure a verification method is available
         if not options.verification_method:
             raise IssuerServiceError(
                 "Unable to get retrieve verification method for did"
@@ -74,6 +106,25 @@ class IssuerService:
     async def _sign_vc_di(self, credential: CredentialBase, options: IssuanceOptions):
         """Sign a VC with Data Integrity."""
 
+        proof_config = {}
+
+        # Default to DataIntegrityProof if no specific proof type is given
+        proof_config["type"] = options.type if options.type else "DataIntegrityProof"
+
+        # Get default cryptosuite is none provided
+        proof_config["cryptosuite"] = (
+            options.cryptosuite
+            if options.cryptosuite
+            else self.profile.settings.get("w3c_vc.di_cryptosuite")
+        )
+
+        # Create timestamp
+        proof_config = proof_config | {
+            "verificationMethod": options.verification_method,
+            "proofPurpose": "assertionMethod",
+            "created": str(datetime.now(timezone.utc).isoformat("T", "seconds")),
+        }
+
         # Get issuer information stored in the wallet
         async with self.profile.session() as session:
             did_info = await session.inject(BaseWallet).get_local_did(
@@ -81,36 +132,38 @@ class IssuerService:
             )
 
         # Instantiate cryptosuite class
-        suite = CRYPTOSUITES[options.cryptosuite]["suite"](
-            document_loader=DocumentLoader(self.profile),
-            key_pair=WalletKeyPair(
-                profile=self.profile,
-                key_type=CRYPTOSUITES[options.cryptosuite]["key_type"],
-                public_key_base58=did_info.verkey,
-            ),
-        )
+        if proof_config["type"] == "DataIntegrityProof":
+            suite_label = proof_config["cryptosuite"]
+
+        # Include typed suites
+        elif options.type in ["Ed25519Signature2020"]:
+            proof_config.pop("cryptosuite")
+            suite_label = options.type
+            
+        try:
+            suite = CRYPTOSUITES[suite_label]["suite"](
+                document_loader=DocumentLoader(self.profile),
+                key_pair=WalletKeyPair(
+                    profile=self.profile,
+                    key_type=CRYPTOSUITES[suite_label]["key_type"],
+                    public_key_base58=did_info.verkey,
+                ),
+            )
+        except:
+            raise IssuerServiceError('Invalid cryptosuite')
 
         # Create proof
-        unsecured_document = credential.serialize()
-        existing_proof = unsecured_document.pop("proof", None)
-        """https://w3c.github.io/vc-data-integrity/#add-proof"""
-        # TODO deal with parallel signatures
-        proof = await suite.create_proof(
-            unsecured_data_document=unsecured_document,
-            proof_config={
-                # "@context": credential.context,
-                "type": "DataIntegrityProof",
-                # TODO convert timestamp offset
-                "proofPurpose": "assertionMethod",
-                "verificationMethod": options.verification_method,
-                "created": str(datetime.now(timezone.utc).isoformat("T", "seconds")),
-                "cryptosuite": options.cryptosuite,
-            },
-        )
-        secured_data_document = unsecured_document.copy()
-        secured_data_document["proof"] = proof
+        unsecured_data_document = credential.serialize()
 
-        return secured_data_document
+        # TODO deal with parallel signatures
+        existing_proof = unsecured_data_document.pop("proof", None)
+
+        """https://w3c.github.io/vc-data-integrity/#add-proof"""
+        vc = await suite.add_proof(
+            unsecured_data_document=unsecured_data_document, proof_config=proof_config
+        )
+
+        return vc
 
     async def _sign_vc_jose(self, credential: CredentialBase, options: IssuanceOptions):
         """Sign a VC with VC-JOSE."""

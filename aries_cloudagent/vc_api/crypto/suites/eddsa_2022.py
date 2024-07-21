@@ -9,19 +9,20 @@ from typing import List
 from ....utils.multiformats import multibase
 from ...document_loader import DocumentLoader
 from ..keys import _KeyPair as KeyPair
-from ..data_integrity_signature import DataIntegritySignature
+from ..di_signature import DataIntegritySignature
 from .. import DataIntegrityProofException
 from ...resources.constants import SECURITY_DATA_INTEGRITY_CONTEXT_V2_URL
 
 
-class EddsaJcs2022(DataIntegritySignature):
-    """EddsaJcs2022 suite."""
+class Eddsa2022:
+    """Eddsa2022 suite."""
 
     def __init__(self, *, key_pair: KeyPair, document_loader: DocumentLoader):
         """Create new EddsaJcs2022 instance.
 
         Args:
             key_pair (KeyPair): Key pair to use. Must provide EdDSA signatures
+            document_loader (DocumentLoader): Key pair to use. Must provide EdDSA signatures
         """
         super().__init__()
         self.key_pair = key_pair

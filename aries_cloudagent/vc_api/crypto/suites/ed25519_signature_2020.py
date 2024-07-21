@@ -2,13 +2,14 @@
 
 from pyld import jsonld
 from hashlib import sha256
+import nacl
 
 from typing import List
 
 from ....utils.multiformats import multibase
 from ...document_loader import DocumentLoader
 from ..keys import _KeyPair as KeyPair
-from ..data_integrity_signature import DataIntegritySignature
+from ..di_signature import DataIntegritySignature
 from .. import DataIntegrityProofException
 from ...resources.constants import (
     SECURITY_CONTEXT_ED25519_2020_URL,
@@ -18,7 +19,7 @@ from ...resources.constants import (
 class Ed25519Signature2020(DataIntegritySignature):
     """Ed25519Signature2020 suite."""
 
-    def __init__(self, *, key_pair: KeyPair, document_loader: DocumentLoader):
+    def __init__(self, *, key_pair: KeyPair = None, document_loader: DocumentLoader):
         """Create new Ed25519Signature2020 instance.
 
         Args:
@@ -73,69 +74,62 @@ class Ed25519Signature2020(DataIntegritySignature):
         except:
             raise DataIntegrityProofException()
 
-    async def create_proof(self, unsecured_data_document, proof_config):
+    async def add_proof(self, unsecured_data_document, proof_config):
         """https://www.w3.org/TR/vc-di-eddsa/#add-proof-ed25519signature2020"""
 
-        # Add relevant context url if not present
+        # Add suite context url if not present
         if SECURITY_CONTEXT_ED25519_2020_URL not in unsecured_data_document["@context"]:
             unsecured_data_document["@context"].append(
                 SECURITY_CONTEXT_ED25519_2020_URL
             )
-        # Since Ed25519Signature2020 doesn't use the cryptosuite property,
-        # we map it to the type and ensure the correct value is set
-        proof_config["type"] = proof_config.pop("cryptosuite")
-        proof = proof_config.copy()
+
         hash_data = await self._prep_input(unsecured_data_document, proof_config)
 
         """https://www.w3.org/TR/vc-di-eddsa/#proof-serialization-ed25519signature2020"""
         # Sign the bytes with eddsa key pair
         try:
+            proof = proof_config.copy()
+            proof.pop("@context")
             proof_bytes = await self.key_pair.sign(hash_data)
             proof["proofValue"] = multibase.encode(proof_bytes, "base58btc")
-            return proof
+
+            secured_document = unsecured_data_document.copy()
+            secured_document["proof"] = proof
+
+            return secured_document
         except:
             raise DataIntegrityProofException()
-
-    async def sign(self, *, verify_data: bytes, proof: dict) -> dict:
-        """Sign the data and add it to the proof.
-
-        Args:
-            verify_data (List[bytes]): The data to sign.
-            proof (dict): The proof to add the signature to
-
-        Returns:
-            dict: The proof object with the added signature
-
-        """
-        signature = await self.key_pair.sign(verify_data)
-
-        proof["proofValue"] = multibase.encode(signature, "base58btc")
-
-        return proof
 
     async def verify_proof(self, unsecured_data_document, proof) -> bool:
         """Verify the data against the proof.
 
         Args:
-            verify_data (bytes): The data to check
-            verification_method (dict): The verification method to use.
-            document (dict): The document the verify data is derived for as extra context
+            unsecured_data_document (dict): The unsecured data document to verify
             proof (dict): The proof to check
-            document_loader (DocumentLoader): Document loader used for resolving
 
         Returns:
             bool: Whether the signature is valid for the data
 
         """
-
-        if not (isinstance(proof.get("proofValue"), str)):
-            raise DataIntegrityProofException(
-                'The proof does not contain a valid "proofValue" property.'
-            )
+        proof_value = proof.pop("proofValue")
         hash_data = await self._prep_input(unsecured_data_document, proof)
-        signature = multibase.decode(proof["proofValue"])
+        signature = multibase.decode(proof_value)
 
-        verification = await self.key_pair.verify(hash_data, signature)
+        did = proof["verificationMethod"].split("#")[0]
 
-        return verification
-        # return {}
+        if did.split(":")[1] == "key":
+            pub_key = multibase.decode(did.split(":")[-1])
+            pub_key = bytes(bytearray(pub_key)[2:])
+        try:
+            nacl.bindings.crypto_sign_open(signature + hash_data, pub_key)
+            return {"verified": True, "problem_detail": None}
+        except nacl.exceptions.BadSignatureError:
+            return {
+                "verified": False,
+                "problem_detail": {
+                    "type": "https://www.w3.org/TR/vc-data-model#CRYPTOGRAPHIC_SECURITY_ERROR",
+                    "code": "-65",
+                    "title": "BadSignatureError",
+                    "detail": "Signature was forged or corrupt.",
+                },
+            }

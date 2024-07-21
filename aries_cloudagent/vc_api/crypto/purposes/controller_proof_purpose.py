@@ -7,14 +7,14 @@ from pyld import jsonld
 
 from ...resources.constants import SECURITY_CONTEXT_URL
 from ...document_loader import DocumentLoaderMethod
-from ...signatures.error import DataIntegrityProofException
+from ...crypto.error import DataIntegrityProofException
 from ..validation_result import PurposeResult
 
 from .proof_purpose import ProofPurpose
 
 # Avoid circular dependency
 if TYPE_CHECKING:
-    from ..cryptosuites import DataIntegrityProof
+    from ..suites import DataIntegrityProof
 
 
 class ControllerProofPurpose(ProofPurpose):

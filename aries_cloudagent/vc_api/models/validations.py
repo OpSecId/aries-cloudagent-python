@@ -15,6 +15,51 @@ class Uri(Regexp):
         """Initialize the instance."""
         super().__init__(Uri.PATTERN, error="Value {input} is not URI")
 
+class NameAttribute(Validator):
+
+    def __init__(self) -> None:
+        """Initialize the instance."""
+        super().__init__()
+
+    def __call__(self, value):
+        """Validate input value."""
+        if isinstance(value, list):
+            for item in value:
+                for key in item:
+                    if key not in ['@value', '@language', '@direction']:
+                        raise ValidationError(
+                            f"Invalid extra name property {key}."
+                        )
+        if isinstance(value, dict):
+            for key in value:
+                if key not in ['@value', '@language', '@direction']:
+                    raise ValidationError(
+                        f"Invalid extra name property {key}."
+                    )
+        return value
+
+class DescriptionAttribute(Validator):
+
+    def __init__(self) -> None:
+        """Initialize the instance."""
+        super().__init__()
+
+    def __call__(self, value):
+        """Validate input value."""
+        if isinstance(value, list):
+            for item in value:
+                for key in item:
+                    if key not in ['@value', '@language', '@direction']:
+                        raise ValidationError(
+                            f"Invalid extra description property {key}."
+                        )
+        if isinstance(value, dict):
+            for key in value:
+                if key not in ['@value', '@language', '@direction']:
+                    raise ValidationError(
+                        f"Invalid extra description property {key}."
+                    )
+        return value
 
 class CredentialContext(Validator):
     """Credential Context."""
@@ -60,6 +105,24 @@ class CredentialType(Validator):
 
         return value
 
+class PresentationType(Validator):
+    """Credential Type."""
+
+    PRESETNATION_TYPE = "VerifiablePresentation"
+    EXAMPLE = [PRESETNATION_TYPE, "AlumniCredential"]
+
+    def __init__(self) -> None:
+        """Initialize the instance."""
+        super().__init__()
+
+    def __call__(self, value):
+        """Validate input value."""
+        length = len(value)
+        if length < 1 or PresentationType.PRESETNATION_TYPE not in value:
+            raise ValidationError(f"type must include {PresentationType.PRESETNATION_TYPE}")
+
+        return value
+
 
 class CredentialSubject(Validator):
     """Credential subject."""
@@ -91,6 +154,36 @@ class CredentialSubject(Validator):
                 except ValidationError:
                     raise ValidationError(
                         f'credential subject id {subject["id"]} must be URI'
+                    ) from None
+
+        return value
+
+
+class VerifiableCredential(Validator):
+    """Credential subject."""
+
+    EXAMPLE = {
+        "name": "Alice"
+    }
+
+    def __init__(self) -> None:
+        """Initialize the instance."""
+        super().__init__()
+
+    def __call__(self, value):
+        """Validate input value."""
+        credentials = value if isinstance(value, list) else [value]
+
+        for credential in credentials:
+            if credential == {}:
+                raise ValidationError(f"verifiable credential can't be empty")
+            if "id" in credential:
+                uri_validator = Uri()
+                try:
+                    uri_validator(credential["id"])
+                except ValidationError:
+                    raise ValidationError(
+                        f'credential subject id {credential["id"]} must be URI'
                     ) from None
 
         return value
@@ -314,6 +407,12 @@ URI_EXAMPLE = Uri.EXAMPLE
 
 CREDENTIAL_TYPE_VALIDATE = CredentialType()
 CREDENTIAL_TYPE_EXAMPLE = CredentialType.EXAMPLE
+
+VERIFIABLE_CREDENTIAL_VALIDATE = VerifiableCredential()
+VERIFIABLE_CREDENTIAL_EXAMPLE = VerifiableCredential.EXAMPLE
+
+PRESENTATION_TYPE_VALIDATE = PresentationType()
+PRESENTATION_TYPE_EXAMPLE = PresentationType.EXAMPLE
 
 CREDENTIAL_CONTEXT_VALIDATE = CredentialContext()
 CREDENTIAL_CONTEXT_EXAMPLE = CredentialContext.EXAMPLE

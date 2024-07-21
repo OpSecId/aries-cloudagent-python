@@ -9,8 +9,8 @@ from dateutil import tz
 
 from ..resources.constants import SECURITY_CONTEXT_URL
 from ..document_loader import DocumentLoaderMethod
-from ..signatures import DataIntegrityProof
-from ..signatures.error import DataIntegrityProofException
+from ..crypto import DataIntegrityProof
+from ..crypto.error import DataIntegrityProofException
 from .purposes import _ProofPurpose as ProofPurpose
 from .validation_result import ProofResult
 
@@ -20,10 +20,6 @@ class DataIntegritySignature(DataIntegrityProof, metaclass=ABCMeta):
 
     def __init__(
         self,
-        *,
-        proof: Optional[dict] = None,
-        verification_method: Optional[str] = None,
-        date: Union[datetime, None] = None,
     ):
         """Create new DataIntegritySignature instance.
 
@@ -38,23 +34,6 @@ class DataIntegritySignature(DataIntegrityProof, metaclass=ABCMeta):
             date (datetime, optional): Signing date to use. Defaults to now
 
         """
-        super().__init__(proof=proof)
-        self.verification_method = verification_method
-        self.date = date
-
-    @abstractmethod
-    async def sign(self, *, verify_data: bytes, proof: dict) -> dict:
-        """Sign the data and add it to the proof.
-
-        Args:
-            verify_data (bytes): The data to sign.
-            proof (dict): The proof to add the signature to
-
-        Returns:
-            dict: The proof object with the added signature
-
-        """
-        pass
 
     @abstractmethod
     async def verify_proof(

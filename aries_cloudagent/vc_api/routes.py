@@ -28,6 +28,7 @@ from .services import (
 )
 from .models import (
     CredentialBase,
+    PresentationBase,
     VerifiableCredentialBase,
     IssuanceOptions,
     VerificationOptions,
@@ -41,6 +42,8 @@ from .models.web_requests import (
     IssueCredentialRequest,
     IssueCredentialResponse,
     VerifyCredentialRequest,
+    CreatePresentationRequest,
+    VerifyPresentationRequest,
 )
 
 
@@ -60,41 +63,14 @@ async def issue_credential_route(request: web.BaseRequest):
     context: AdminRequestContext = request["context"]
     try:
         credential = body["credential"]
-        if (
-            credential["@context"][0] == CREDENTIALS_CONTEXT_V1_URL
-            and "issuanceDate" not in credential
-        ):
-            # issuanceDate is a required field in VCDM 1.1
-            credential["issuanceDate"] = str(
-                datetime.now().isoformat("T", "seconds") + "Z"
-            )
-
         options = {} if "options" not in body else body["options"]
-        options["cryptosuite"] = (
-            options["cryptosuite"]
-            if "cryptosuite" in options
-            else context.profile.settings.get("w3c_vc.di_cryptosuite")
-        )
-        options["type"] = (
-            "DataIntegrityProof"
-            if "cryptosuite" in options
-            else context.profile.settings.get("w3c_vc.di_cryptosuite")
-        )
-
-        if (
-            "credentialStatus" in options
-            and credential["@context"][0] == CREDENTIALS_CONTEXT_V2_URL
-        ):
-            credential["credentialStatus"] = await StatusService(
-                context.profile
-            ).create_status_entry(options["credentialStatus"]["statusPurpose"])
         vc = await IssuerService(context.profile).issue_credential(
             CredentialBase.deserialize(credential), IssuanceOptions.deserialize(options)
         )
 
         return web.json_response({"verifiableCredential": vc}, status=201)
 
-    except (ValidationError, IssuerServiceError, WalletError, InjectionError) as err:
+    except (KeyError, ValidationError, IssuerServiceError, WalletError, InjectionError) as err:
         return web.json_response({"message": str(err)}, status=400)
 
 
@@ -119,6 +95,7 @@ async def verify_credential_route(request: web.BaseRequest):
         )
         return web.json_response(result)
     except (
+        KeyError,
         ValidationError,
         VerifierServiceError,
         ResolverError,
@@ -198,76 +175,62 @@ async def create_status_credential_route(request: web.BaseRequest):
 #         return web.json_response({"message": str(err)}, status=400)
 
 
-# @docs(tags=["vc-api"], summary="Prove a presentation")
-# @request_schema(web_schemas.ProvePresentationRequest())
+@docs(tags=["vc-api"], summary="Create a presentation")
+@request_schema(CreatePresentationRequest())
 # @response_schema(web_schemas.ProvePresentationResponse(), 200, description="")
-# @tenant_authentication
-# async def prove_presentation_route(request: web.BaseRequest):
-#     """Request handler for proving a presentation.
+@tenant_authentication
+async def create_presentation_route(request: web.BaseRequest):
+    """Request handler for creating a presentation.
 
-#     Args:
-#         request: aiohttp request object
+    Args:
+        request: aiohttp request object
 
-#     """
-#     context: AdminRequestContext = request["context"]
-#     manager = VcLdpManager(context.profile)
-#     body = await request.json()
-#     try:
-#         presentation = body["presentation"]
-#         options = {} if "options" not in body else body["options"]
+    """
+    context: AdminRequestContext = request["context"]
+    body = await request.json()
+    try:
+        credential = body["credential"]
+        options = {} if "options" not in body else body["options"]
+        vc = await IssuerService(context.profile).issue_credential(
+            CredentialBase.deserialize(credential), IssuanceOptions.deserialize(options)
+        )
 
-#         # We derive the proofType from the holder DID if not provided in options
-#         if not options.get("proofType", None):
-#             holder = presentation["holder"]
-#             did = holder if isinstance(holder, str) else holder["id"]
-#             async with context.session() as session:
-#                 wallet: BaseWallet | None = session.inject_or(BaseWallet)
-#                 info = await wallet.get_local_did(did)
-#                 key_type = info.key_type.key_type
+        return web.json_response({"verifiableCredential": vc}, status=201)
 
-#             if key_type == "ed25519":
-#                 options["proofType"] = "Ed25519Signature2020"
-#             elif key_type == "bls12381g2":
-#                 options["proofType"] = "BbsBlsSignature2020"
-
-#         presentation = VerifiablePresentation.deserialize(presentation)
-#         options = LDProofVCOptions.deserialize(options)
-#         vp = await manager.prove(presentation, options)
-#         return web.json_response({"verifiablePresentation": vp.serialize()}, status=201)
-
-#     except (ValidationError, ServiceError, WalletError, InjectionError) as err:
-#         return web.json_response({"message": str(err)}, status=400)
+    except (ValidationError, IssuerServiceError, WalletError, InjectionError) as err:
+        return web.json_response({"message": str(err)}, status=400)
 
 
-# @docs(tags=["vc-api"], summary="Verify a Presentation")
-# @request_schema(web_schemas.VerifyPresentationRequest())
+@docs(tags=["vc-api"], summary="Verify a Presentation")
+@request_schema(VerifyPresentationRequest())
 # @response_schema(web_schemas.VerifyPresentationResponse(), 200, description="")
-# @tenant_authentication
-# async def verify_presentation_route(request: web.BaseRequest):
-#     """Request handler for verifying a presentation.
+@tenant_authentication
+async def verify_presentation_route(request: web.BaseRequest):
+    """Request handler for verifying a presentation.
 
-#     Args:
-#         request: aiohttp request object
+    Args:
+        request: aiohttp request object
 
-#     """
-#     context: AdminRequestContext = request["context"]
-#     manager = VcLdpManager(context.profile)
-#     body = await request.json()
-#     try:
-#         vp = VerifiablePresentation.deserialize(body["verifiablePresentation"])
-#         options = {} if "options" not in body else body["options"]
-#         options = LDProofVCOptions.deserialize(options)
-#         verified = await manager.verify_presentation(vp, options)
-#         return web.json_response(verified.serialize(), status=200)
-#     except (
-#         ValidationError,
-#         WalletError,
-#         InjectionError,
-#         ServiceError,
-#         ResolverError,
-#         ValueError,
-#     ) as err:
-#         return web.json_response({"message": str(err)}, status=400)
+    """
+    body = await request.json()
+    context: AdminRequestContext = request["context"]
+    try:
+        vp = body["verifiablePresentation"]
+        options = {} if "options" not in body else body["options"]
+        result = await VerifierService(context.profile).verify_presentation(
+            PresentationBase.deserialize(vp), VerificationOptions.deserialize(options)
+        )
+        return web.json_response(result)
+    except (
+        KeyError,
+        ValidationError,
+        WalletError,
+        InjectionError,
+        VerifierServiceError,
+        ResolverError,
+        ValueError,
+    ) as err:
+        return web.json_response({"message": str(err)}, status=400)
 
 
 async def register(app: web.Application):
@@ -283,10 +246,10 @@ async def register(app: web.Application):
             # ),
             web.post("/vc/credentials/issue", issue_credential_route),
             web.post("/vc/credentials/verify", verify_credential_route),
+            web.post("/vc/presentations/verify", verify_presentation_route),
             web.post("/vc/status-list", create_status_credential_route),
             # web.post("/vc/credentials/store", store_credential_route),
             # web.post("/vc/presentations/prove", prove_presentation_route),
-            # web.post("/vc/presentations/verify", verify_presentation_route),
         ]
     )
 
