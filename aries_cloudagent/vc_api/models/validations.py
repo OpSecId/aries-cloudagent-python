@@ -99,9 +99,12 @@ class CredentialType(Validator):
 
     def __call__(self, value):
         """Validate input value."""
-        length = len(value)
-        if length < 1 or CredentialType.CREDENTIAL_TYPE not in value:
-            raise ValidationError(f"type must include {CredentialType.CREDENTIAL_TYPE}")
+        if isinstance(value, list):
+            if CredentialType.CREDENTIAL_TYPE not in value:
+                raise ValidationError(f"type must include {CredentialType.CREDENTIAL_TYPE}")
+        elif isinstance(value, str):
+            if CredentialType.CREDENTIAL_TYPE != value:
+                raise ValidationError(f"type must be {CredentialType.CREDENTIAL_TYPE}")
 
         return value
 

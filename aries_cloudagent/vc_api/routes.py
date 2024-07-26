@@ -108,7 +108,7 @@ async def verify_credential_route(request: web.BaseRequest):
 
 @docs(tags=["vc-api"], summary="Create status-list credential")
 @request_schema(CreateStatusCredentialRequest())
-@response_schema(CreateStatusCredentialResponse(), 201, description="")
+# @response_schema(CreateStatusCredentialResponse(), 201, description="")
 @tenant_authentication
 async def create_status_credential_route(request: web.BaseRequest):
     """Request handler for creating a status credential.
@@ -126,15 +126,16 @@ async def create_status_credential_route(request: web.BaseRequest):
             ttl=body["ttl"] if "ttl" in body else 300000,
             length=body["length"] if "length" in body else 200000,
         )
-        options = {
-            "verification_method": body["verification_method"],
-            "cryptosuite": "Ed25519Signature2020",
-        }
-        status_vc = await IssuerService(context.profile).issue_credential(
-            CredentialBase.deserialize(status_credential),
-            IssuanceOptions.deserialize(options),
-        )
-        return web.json_response({"statusCredential": status_vc}, status=201)
+        # options = {
+        #     "verification_method": body["verification_method"],
+        #     "cryptosuite": "Ed25519Signature2020",
+        # }
+        # status_vc = await IssuerService(context.profile).issue_credential(
+        #     CredentialBase.deserialize(status_credential),
+        #     IssuanceOptions.deserialize(options),
+        # )
+        # return web.json_response({"statusCredential": status_vc}, status=201)
+        return web.json_response({"statusCredential": status_credential}, status=201)
 
     except (ValidationError, IssuerServiceError, WalletError, InjectionError) as err:
         return web.json_response({"message": str(err)}, status=400)

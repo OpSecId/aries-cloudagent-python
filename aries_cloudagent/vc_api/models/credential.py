@@ -9,6 +9,7 @@ from marshmallow import INCLUDE, ValidationError, fields, post_dump
 from ...messaging.models.base import BaseModel, BaseModelSchema
 from ...messaging.valid import (
     DictOrDictListField,
+    StrOrListField,
     StrOrDictOrListDictField,
     DIDKey,
     StrOrDictField,
@@ -133,12 +134,15 @@ class CredentialBase(BaseModel):
         return self._type
 
     @type.setter
-    def type(self, type: List[str]):
+    def type(self, type: Union[str, List[str]]):
         """Setter for type.
 
         First item must be VerifiableCredential
         """
-        assert VERIFIABLE_CREDENTIAL_TYPE in type
+        if isinstance(type, list):
+            assert VERIFIABLE_CREDENTIAL_TYPE in type
+        elif isinstance(type, str):
+            assert VERIFIABLE_CREDENTIAL_TYPE == type
 
         self._type = type
 
@@ -417,8 +421,7 @@ class CredentialBaseSchema(BaseModelSchema):
         },
     )
 
-    type = fields.List(
-        fields.Str(required=True),
+    type = StrOrListField(
         required=True,
         validate=CREDENTIAL_TYPE_VALIDATE,
         metadata={

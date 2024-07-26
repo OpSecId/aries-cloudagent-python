@@ -48,7 +48,6 @@ class CreateStatusCredentialRequest(OpenAPISchema):
     did = fields.Str(
         required=True,
         metadata={
-            "description": "",
             "example": "did:key:",
         },
     )
@@ -56,22 +55,20 @@ class CreateStatusCredentialRequest(OpenAPISchema):
         alias="verificationMethod",
         required=True,
         metadata={
-            "description": "",
             "example": "did:key:",
         },
     )
     length = fields.Int(
         required=False,
         metadata={
-            "description": "",
             "example": 200000,
         },
     )
-    purpose = fields.Int(
+    purpose = fields.List(
+        fields.Str(),
         required=False,
         metadata={
-            "description": "",
-            "example": "revocation",
+            "example": ["revocation"],
         },
     )
 

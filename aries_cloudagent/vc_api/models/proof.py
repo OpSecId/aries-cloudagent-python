@@ -1,6 +1,10 @@
 """DataIntegrityProof."""
 
-from typing import Optional
+from typing import Optional, Union
+
+from datetime import datetime
+
+from dateutil import tz
 
 from marshmallow import INCLUDE, fields, post_dump
 
@@ -28,6 +32,7 @@ class DIProof(BaseModel):
         proof_purpose: Optional[str] = None,
         verification_method: Optional[str] = None,
         created: Optional[str] = None,
+        expires: Optional[str] = None,
         domain: Optional[str] = None,
         challenge: Optional[str] = None,
         proof_value: Optional[str] = None,
@@ -41,11 +46,61 @@ class DIProof(BaseModel):
         self.proof_purpose = proof_purpose
         self.verification_method = verification_method
         self.created = created
+        self.expires = expires
         self.domain = domain
         self.challenge = challenge
         self.proof_value = proof_value
         self.nonce = nonce
         self.extra = kwargs
+
+    @property
+    def created(self):
+        """Getter for created."""
+        return self._created
+
+    @created.setter
+    def created(self, date: Union[str, datetime]):
+        """Setter for expiration date."""
+        if isinstance(date, datetime):
+            if not date.tzinfo:
+                date = date.replace(tzinfo=tz.UTC)
+            date = date.isoformat()
+
+        self._created = date
+
+    @property
+    def expires(self):
+        """Getter for expires."""
+        return self._expires
+
+    @expires.setter
+    def expires(self, date: Union[str, datetime]):
+        """Setter for expiration date."""
+        if isinstance(date, datetime):
+            if not date.tzinfo:
+                date = date.replace(tzinfo=tz.UTC)
+            date = date.isoformat()
+
+        self._expires = date
+
+    def __eq__(self, o: object) -> bool:
+        """Check equality."""
+        if isinstance(o, DIProof):
+            return (
+                self.type == o.type
+                and self.cryptosuite == o.cryptosuite
+                and self.proof_purpose == o.proof_purpose
+                and self.verification_method == o.verification_method
+                and self.created == o.created
+                and self.expires == o.expires
+                and self.domain == o.domain
+                and self.challenge == o.challenge
+                and self.proof_value == o.proof_value
+                and self.nonce == o.nonce
+                and self.extra == o.extra
+            )
+
+        return False
 
 
 class DataIntegrityProofSchema(BaseModelSchema):
@@ -98,7 +153,19 @@ class DataIntegrityProofSchema(BaseModelSchema):
     )
 
     created = fields.Str(
-        required=True,
+        required=False,
+        validate=INDY_ISO8601_DATETIME_VALIDATE,
+        metadata={
+            "description": (
+                "The string value of an ISO8601 combined date and time string generated"
+                " by the Signature Algorithm"
+            ),
+            "example": INDY_ISO8601_DATETIME_EXAMPLE,
+        },
+    )
+
+    expires = fields.Str(
+        required=False,
         validate=INDY_ISO8601_DATETIME_VALIDATE,
         metadata={
             "description": (

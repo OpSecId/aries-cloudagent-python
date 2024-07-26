@@ -19,6 +19,15 @@ B58 = alphabet if isinstance(alphabet, str) else alphabet.decode("ascii")
 EXAMPLE_TIMESTAMP = 1640995199  # 2021-12-31 23:59:59Z
 
 
+class StrOrListField(Field):
+    """Str or List field for Marshmallow."""
+
+    def _deserialize(self, value, attr, data, **kwargs):
+        if not isinstance(value, (str, list)):
+            raise ValidationError("Field should be str or list")
+        return super()._deserialize(value, attr, data, **kwargs)
+
+
 class StrOrDictField(Field):
     """Str or Dict field for Marshmallow."""
 
