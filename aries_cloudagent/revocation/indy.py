@@ -203,20 +203,27 @@ class IndyRevocation:
             return await IssuerRevRegRecord.query(session)
 
     async def get_issuer_rev_reg_delta(
-        self, rev_reg_id: str, fro: int = None, to: int = None
+        self, rev_reg_id: str, timestamp_from: int = None, timestamp_to: int = None
     ) -> dict:
         """Check ledger for revocation status for a given revocation registry.
 
         Args:
-            rev_reg_id: ID of the revocation registry
+            rev_reg_id (str): ID of the revocation registry
+            timestamp_from (int, optional): The sequence number to start from (exclusive).
+                Defaults to None.
+            timestamp_to (int, optional): The sequence number to end at (inclusive).
+                Defaults to None.
+
+        Returns:
+            dict: The revocation registry delta.
 
         """
         ledger = await self.get_ledger_for_registry(rev_reg_id)
         async with ledger:
             (rev_reg_delta, _) = await ledger.get_revoc_reg_delta(
                 rev_reg_id,
-                fro,
-                to,
+                timestamp_from,
+                timestamp_to,
             )
 
         return rev_reg_delta
@@ -230,9 +237,7 @@ class IndyRevocation:
         triggered and the caller should retry after a delay.
         """
         try:
-            active_rev_reg_rec = await self.get_active_issuer_rev_reg_record(
-                cred_def_id
-            )
+            active_rev_reg_rec = await self.get_active_issuer_rev_reg_record(cred_def_id)
             rev_reg = active_rev_reg_rec.get_registry()
             await rev_reg.get_or_fetch_local_tails_path()
             return active_rev_reg_rec, rev_reg
@@ -247,11 +252,14 @@ class IndyRevocation:
             # all registries are full, create a new one
             if not full_registries:
                 # Use any registry to get max cred num
-                any_registry = (
-                    await IssuerRevRegRecord.query_by_cred_def_id(
-                        session, cred_def_id, limit=1
+                any_registry = await IssuerRevRegRecord.query_by_cred_def_id(
+                    session, cred_def_id, limit=1
+                )
+                if not any_registry:
+                    raise RevocationError(
+                        f"No revocation registry record found in issuer wallet for cred def id {cred_def_id}"  # noqa: E501
                     )
-                )[0]
+                any_registry = any_registry[0]
                 await self.init_issuer_registry(
                     cred_def_id,
                     max_cred_num=any_registry.max_cred_num,

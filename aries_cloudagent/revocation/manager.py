@@ -35,7 +35,7 @@ class RevocationManager:
         """Initialize a RevocationManager.
 
         Args:
-            context: The context for this revocation manager
+            profile: The profile instance for this revocation manager
         """
         self._profile = profile
         self._logger = logging.getLogger(__name__)
@@ -57,9 +57,31 @@ class RevocationManager:
         Optionally, publish the corresponding revocation registry delta to the ledger.
 
         Args:
-            cred_ex_id: credential exchange identifier
-            publish: whether to publish the resulting revocation registry delta,
-                along with any revocations pending against it
+            cred_ex_id (str): The credential exchange identifier.
+            publish (bool, optional): Whether to publish the resulting revocation
+                registry delta, along with any revocations pending against it.
+                Defaults to False.
+            notify (bool, optional): Whether to notify the affected parties about the
+                revocation. Defaults to False.
+            notify_version (str, optional): The version of the notification to use.
+                Defaults to None.
+            thread_id (str, optional): The thread identifier for the revocation process.
+                Defaults to None.
+            connection_id (str, optional): The connection identifier for the revocation
+                process. Defaults to None.
+            endorser_conn_id (str, optional): The endorser connection identifier for the
+                revocation process. Defaults to None.
+            comment (str, optional): Additional comment or reason for the revocation.
+                Defaults to None.
+            write_ledger (bool, optional): Whether to write the revocation to the ledger.
+                Defaults to True.
+
+        Raises:
+            RevocationManagerError: If no issuer credential revocation record is found
+                for the given credential exchange identifier.
+
+        Returns:
+            The result of the `revoke_credential` method.
 
         """
         try:
@@ -105,11 +127,29 @@ class RevocationManager:
         Optionally, publish the corresponding revocation registry delta to the ledger.
 
         Args:
-            rev_reg_id: revocation registry id
-            cred_rev_id: credential revocation id
-            publish: whether to publish the resulting revocation registry delta,
-                along with any revocations pending against it
+            rev_reg_id (str): The revocation registry id.
+            cred_rev_id (str): The credential revocation id.
+            publish (bool, optional): Whether to publish the resulting revocation
+                registry delta, along with any revocations pending against it.
+                Defaults to False.
+            notify (bool, optional): Whether to send a revocation notification.
+                Defaults to False.
+            notify_version (str, optional): The version of the revocation notification.
+                Defaults to None.
+            thread_id (str, optional): The thread id for the revocation notification.
+                Defaults to None.
+            connection_id (str, optional): The connection id for the revocation
+                notification. Defaults to None.
+            endorser_conn_id (str, optional): The endorser connection id.
+                Defaults to None.
+            comment (str, optional): Additional comment for the revocation notification.
+                Defaults to None.
+            write_ledger (bool, optional): Whether to write the revocation entry to the
+                ledger. Defaults to True.
 
+        Returns:
+            Optional[dict]: The revocation entry response if publish is True and
+                write_ledger is True, otherwise None.
         """
         issuer = self._profile.inject(IndyIssuer)
 
@@ -196,11 +236,13 @@ class RevocationManager:
         """Request handler to fix ledger entry of credentials revoked against registry.
 
         Args:
-            rev_reg_id: revocation registry id
-            apply_ledger_update: whether to apply an update to the ledger
+            apply_ledger_update (bool): Whether to apply an update to the ledger.
+            rev_reg_record (IssuerRevRegRecord): The revocation registry record.
+            genesis_transactions (dict): The genesis transactions.
 
         Returns:
-            Number of credentials posted to ledger
+            Tuple[dict, dict, dict]: A tuple containing the number of credentials posted
+                to the ledger.
 
         """
         return await rev_reg_record.fix_ledger_entry(
@@ -234,13 +276,14 @@ class RevocationManager:
                     - all pending revocations from all revocation registry tagged 0
                     - pending ["1", "2"] from revocation registry tagged 1
                     - no pending revocations from any other revocation registries.
+            write_ledger: whether to write the revocation registry entry to the ledger
             connection_id: connection identifier for endorser connection to use
 
         Returns: mapping from each revocation registry id to its cred rev ids published.
         """
         result = {}
         issuer = self._profile.inject(IndyIssuer)
-        rev_entry_resp = None
+        rev_entry_responses = []
         async with self._profile.session() as session:
             issuer_rr_recs = await IssuerRevRegRecord.query_by_pending(session)
 
@@ -288,20 +331,24 @@ class RevocationManager:
                                 session, "endorser_info"
                             )
                         endorser_did = endorser_info["endorser_did"]
-                        rev_entry_resp = await issuer_rr_upd.send_entry(
-                            self._profile,
-                            write_ledger=write_ledger,
-                            endorser_did=endorser_did,
+                        rev_entry_responses.append(
+                            await issuer_rr_upd.send_entry(
+                                self._profile,
+                                write_ledger=write_ledger,
+                                endorser_did=endorser_did,
+                            )
                         )
                     else:
-                        rev_entry_resp = await issuer_rr_upd.send_entry(self._profile)
+                        rev_entry_responses.append(
+                            await issuer_rr_upd.send_entry(self._profile)
+                        )
                         await notify_revocation_published_event(
                             self._profile, issuer_rr_rec.revoc_reg_id, crids
                         )
                 published = sorted(crid for crid in crids if crid not in failed_crids)
                 result[issuer_rr_rec.revoc_reg_id] = published
 
-        return rev_entry_resp, result
+        return rev_entry_responses, result
 
     async def clear_pending_revocations(
         self, purge: Mapping[Text, Sequence[Text]] = None

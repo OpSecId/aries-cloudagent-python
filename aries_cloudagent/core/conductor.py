@@ -104,6 +104,7 @@ class Conductor:
             inbound_transports: Configuration for inbound transports
             outbound_transports: Configuration for outbound transports
             settings: Dictionary of various settings
+            context_builder: Context builder for the conductor
 
         """
         self.admin_server = None
@@ -235,9 +236,7 @@ class Conductor:
         )
 
         # Bind default PyLD document loader
-        context.injector.bind_instance(
-            DocumentLoader, DocumentLoader(self.root_profile)
-        )
+        context.injector.bind_instance(DocumentLoader, DocumentLoader(self.root_profile))
 
         # Admin API
         if context.settings.get("admin.enabled"):
@@ -479,8 +478,8 @@ class Conductor:
         try:
             async with self.root_profile.session() as session:
                 invite_store = MediationInviteStore(session.context.inject(BaseStorage))
-                mediation_invite_record = (
-                    await invite_store.get_mediation_invite_record(provided_invite)
+                mediation_invite_record = await invite_store.get_mediation_invite_record(
+                    provided_invite
                 )
         except Exception:
             LOGGER.exception("Error retrieving mediator invitation")
@@ -582,7 +581,7 @@ class Conductor:
         """Route inbound messages.
 
         Args:
-            context: The context associated with the inbound message
+            profile: The active profile for the request
             message: The inbound message instance
             can_respond: If the session supports return routing
 
@@ -613,9 +612,7 @@ class Conductor:
     def dispatch_complete(self, message: InboundMessage, completed: CompletedTask):
         """Handle completion of message dispatch."""
         if completed.exc_info:
-            LOGGER.exception(
-                "Exception in message handler:", exc_info=completed.exc_info
-            )
+            LOGGER.exception("Exception in message handler:", exc_info=completed.exc_info)
             if isinstance(completed.exc_info[1], LedgerConfigError) or isinstance(
                 completed.exc_info[1], LedgerTransactionError
             ):
@@ -667,7 +664,7 @@ class Conductor:
 
         Args:
             profile: The active profile for the request
-            message: An outbound message to be sent
+            outbound: An outbound message to be sent
             inbound: The inbound message that produced this response, if available
         """
         status: OutboundSendStatus = await self._outbound_message_router(
@@ -686,7 +683,7 @@ class Conductor:
 
         Args:
             profile: The active profile for the request
-            message: An outbound message to be sent
+            outbound: An outbound message to be sent
             inbound: The inbound message that produced this response, if available
         """
         if not outbound.target and outbound.reply_to_verkey:
@@ -719,7 +716,7 @@ class Conductor:
 
         Args:
             profile: The active profile
-            message: An outbound message to be sent
+            outbound: The outbound message to be sent
             inbound: The inbound message that produced this response, if available
         """
         has_target = outbound.target or outbound.target_list
@@ -729,9 +726,7 @@ class Conductor:
             conn_mgr = ConnectionManager(profile)
             try:
                 outbound.target_list = await self.dispatcher.run_task(
-                    conn_mgr.get_connection_targets(
-                        connection_id=outbound.connection_id
-                    )
+                    conn_mgr.get_connection_targets(connection_id=outbound.connection_id)
                 )
             except ConnectionManagerError:
                 LOGGER.exception("Error preparing outbound message for transmission")
@@ -746,9 +741,7 @@ class Conductor:
         elif not has_target and outbound.reply_thread_id:
             message_processor = profile.inject(OobMessageProcessor)
             outbound.target = await self.dispatcher.run_task(
-                message_processor.find_oob_target_for_outbound_message(
-                    profile, outbound
-                )
+                message_processor.find_oob_target_for_outbound_message(profile, outbound)
             )
 
         return await self._queue_message(profile, outbound)
@@ -868,7 +861,18 @@ class Conductor:
 
     async def check_for_wallet_upgrades_in_progress(self):
         """Check for upgrade and upgrade if needed."""
-        multitenant_mgr = self.context.inject_or(BaseMultitenantManager)
+
+        # We need to use the correct multitenant manager for single vs multiple wallets
+        # here because the multitenant provider hasn't been initialized yet.
+        manager_type = self.context.settings.get_value(
+            "multitenant.wallet_type", default="basic"
+        ).lower()
+
+        manager_class = MultitenantManagerProvider.MANAGER_TYPES.get(
+            manager_type, manager_type
+        )
+
+        multitenant_mgr = self.context.inject_or(manager_class)
         if multitenant_mgr:
             subwallet_profiles = await get_subwallet_profiles_from_storage(
                 self.root_profile

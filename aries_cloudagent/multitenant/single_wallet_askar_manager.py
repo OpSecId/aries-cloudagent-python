@@ -2,18 +2,18 @@
 
 from typing import Iterable, Optional, cast
 
-from ..askar.profile_anon import AskarAnoncredsProfile
 from ..askar.profile import AskarProfile
+from ..askar.profile_anon import AskarAnoncredsProfile
 from ..config.injection_context import InjectionContext
 from ..config.wallet import wallet_config
 from ..core.profile import (
     Profile,
 )
-from ..multitenant.base import BaseMultitenantManager
 from ..wallet.models.wallet_record import WalletRecord
+from .base import BaseMultitenantManager
 
 
-class AskarProfileMultitenantManager(BaseMultitenantManager):
+class SingleWalletAskarMultitenantManager(BaseMultitenantManager):
     """Class for handling askar profile multitenancy."""
 
     DEFAULT_MULTITENANT_WALLET_NAME = "multitenant_sub_wallet"
@@ -23,6 +23,7 @@ class AskarProfileMultitenantManager(BaseMultitenantManager):
 
         Args:
             profile: The base profile for this manager
+            multitenant_profile: The multitenant profile for this manager
         """
         super().__init__(profile)
         self._multitenant_profile: Optional[AskarProfile] = multitenant_profile
@@ -57,6 +58,7 @@ class AskarProfileMultitenantManager(BaseMultitenantManager):
             base_context: Base context to extend from
             wallet_record: Wallet record to get the context for
             extra_settings: Any extra context settings
+            provision: Whether to provision the wallet
 
         Returns:
             Profile: Profile for the wallet record
@@ -90,9 +92,7 @@ class AskarProfileMultitenantManager(BaseMultitenantManager):
         profile_context = self._multitenant_profile.context.copy()
 
         if provision:
-            await self._multitenant_profile.store.create_profile(
-                wallet_record.wallet_id
-            )
+            await self._multitenant_profile.store.create_profile(wallet_record.wallet_id)
 
         extra_settings = {
             "admin.webhook_urls": self.get_webhook_urls(base_context, wallet_record),

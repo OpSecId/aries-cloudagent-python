@@ -55,7 +55,7 @@ from ..wallet.crypto import create_keypair, seed_to_did
 from ..wallet.did_info import INVITATION_REUSE_KEY, DIDInfo, KeyInfo
 from ..wallet.did_method import PEER2, PEER4, SOV, DIDMethod
 from ..wallet.error import WalletNotFoundError
-from ..wallet.key_type import ED25519
+from ..wallet.key_type import ED25519, X25519
 from ..wallet.util import b64_to_bytes, bytes_to_b58
 from .models.conn_record import ConnRecord
 from .models.connection_target import ConnectionTarget
@@ -76,7 +76,8 @@ class BaseConnectionManager:
         """Initialize a BaseConnectionManager.
 
         Args:
-            session: The profile session for this presentation
+            profile (Profile): The profile object associated with this connection manager.
+
         """
         self._profile = profile
         self._route_manager = profile.inject(RouteManager)
@@ -85,9 +86,18 @@ class BaseConnectionManager:
     @staticmethod
     def _key_info_to_multikey(key_info: KeyInfo) -> str:
         """Convert a KeyInfo to a multikey."""
-        return multibase.encode(
-            multicodec.wrap("ed25519-pub", b58decode(key_info.verkey)), "base58btc"
-        )
+        if key_info.key_type == ED25519:
+            return multibase.encode(
+                multicodec.wrap("ed25519-pub", b58decode(key_info.verkey)), "base58btc"
+            )
+        elif key_info.key_type == X25519:
+            return multibase.encode(
+                multicodec.wrap("x25519-pub", b58decode(key_info.verkey)), "base58btc"
+            )
+        else:
+            raise BaseConnectionManagerError(
+                "Unsupported key type. Could not convert to multikey."
+            )
 
     def long_did_peer_to_short(self, long_did: str) -> str:
         """Convert did:peer:4 long format to short format and return."""
@@ -124,12 +134,14 @@ class BaseConnectionManager:
         """Create a did:peer:4 DID for a connection.
 
         Args:
-            svc_endpoints: Custom endpoints for the DID Document
-            mediation_record: The record for mediation that contains routing_keys and
-                service endpoint
+            svc_endpoints (Optional[Sequence[str]]): Custom endpoints for the
+                DID Document.
+            mediation_records (Optional[List[MediationRecord]]): The records for
+                mediation that contain routing keys and service endpoint.
+            metadata (Optional[Dict]): Additional metadata for the DID.
 
         Returns:
-            The new `DIDInfo` instance
+            DIDInfo: The new `DIDInfo` instance representing the created DID.
         """
         routing_keys: List[str] = []
         if mediation_records:
@@ -190,12 +202,14 @@ class BaseConnectionManager:
         """Create a did:peer:2 DID for a connection.
 
         Args:
-            svc_endpoints: Custom endpoints for the DID Document
-            mediation_record: The record for mediation that contains routing_keys and
-                service endpoint
+            svc_endpoints (Optional[Sequence[str]]): Custom endpoints for the
+                DID Document.
+            mediation_records (Optional[List[MediationRecord]]): The records for
+                mediation that contain routing keys and service endpoint.
+            metadata (Optional[Dict]): Additional metadata for the DID.
 
         Returns:
-            The new `DIDInfo` instance
+            DIDInfo: The new `DIDInfo` instance representing the created DID.
         """
         routing_keys: List[str] = []
         if mediation_records:
@@ -222,13 +236,30 @@ class BaseConnectionManager:
                     "serviceEndpoint": endpoint,
                 }
             )
+            if self._profile.settings.get("experiment.didcomm_v2"):
+                services.append(
+                    {
+                        "id": f"#service-{index}",
+                        "type": "DIDCommMessaging",
+                        "serviceEndpoint": {
+                            "uri": endpoint,
+                            "accept": ["didcomm/v2"],
+                            "routingKeys": routing_keys,
+                        },
+                    }
+                )
 
         async with self._profile.session() as session:
             wallet = session.inject(BaseWallet)
             key = await wallet.create_key(ED25519)
+            xk = await wallet.create_key(X25519)
 
             did = generate(
-                [KeySpec.verification(self._key_info_to_multikey(key))], services
+                [
+                    KeySpec.verification(self._key_info_to_multikey(key)),
+                    KeySpec.key_agreement(self._key_info_to_multikey(xk)),
+                ],
+                services,
             )
 
             did_metadata = metadata if metadata else {}
@@ -240,6 +271,8 @@ class BaseConnectionManager:
                 key_type=ED25519,
             )
             await wallet.store_did(did_info)
+            await wallet.assign_kid_to_key(key.verkey, f"{did}#key-1")
+            await wallet.assign_kid_to_key(xk.verkey, f"{did}#key-2")
 
         return did_info
 
@@ -274,16 +307,17 @@ class BaseConnectionManager:
         """Create our DID doc for a given DID.
 
         Args:
-            did_info: The DID information (DID and verkey) used in the connection
-            svc_endpoints: Custom endpoints for the DID Document
-            mediation_record: The record for mediation that contains routing_keys and
-                service endpoint
+            did_info (DIDInfo): The DID information (DID and verkey) used in the
+                connection.
+            svc_endpoints (Optional[Sequence[str]]): Custom endpoints for the
+                DID Document.
+            mediation_records (Optional[List[MediationRecord]]): The records for
+                mediation that contain routing keys and service endpoints.
 
         Returns:
-            The prepared `DIDDoc` instance
+            DIDDoc: The prepared `DIDDoc` instance.
 
         """
-
         did_doc = DIDDoc(did=did_info.did)
         did_controller = did_info.did
         did_key = did_info.verkey
@@ -390,8 +424,6 @@ class BaseConnectionManager:
             storage: BaseStorage = session.inject(BaseStorage)
             record = await storage.find_record(self.RECORD_TYPE_DID_KEY, {"key": key})
         ret_did = record.tags["did"]
-        if ret_did.startswith("did:peer:4"):
-            ret_did = self.long_did_peer_to_short(ret_did)
         return ret_did
 
     async def remove_keys_for_did(self, did: str):
@@ -418,9 +450,7 @@ class BaseConnectionManager:
             doc_dict: dict = await resolver.resolve(self._profile, did, service_accept)
             doc: ResolvedDocument = pydid.deserialize_document(doc_dict, strict=True)
         except ResolverError as error:
-            raise BaseConnectionManagerError(
-                "Failed to resolve DID services"
-            ) from error
+            raise BaseConnectionManagerError("Failed to resolve DID services") from error
 
         if not doc.service:
             raise BaseConnectionManagerError(
@@ -463,7 +493,16 @@ class BaseConnectionManager:
         """Resolve invitation with the DID Resolver.
 
         Args:
-            did: Document ID to resolve
+            did (str): Document ID to resolve.
+            service_accept (Optional[Sequence[Text]]): List of accepted service types.
+
+        Returns:
+            Tuple[str, List[str], List[str]]: A tuple containing the endpoint,
+                recipient keys, and routing keys.
+
+        Raises:
+            BaseConnectionManagerError: If the public DID has no associated
+                DIDComm services.
         """
         doc, didcomm_services = await self.resolve_didcomm_services(did, service_accept)
         if not didcomm_services:
@@ -480,10 +519,7 @@ class BaseConnectionManager:
 
         return (
             endpoint,
-            [
-                self._extract_key_material_in_base58_format(key)
-                for key in recipient_keys
-            ],
+            [self._extract_key_material_in_base58_format(key) for key in recipient_keys],
             [self._extract_key_material_in_base58_format(key) for key in routing_keys],
         )
 
@@ -589,14 +625,18 @@ class BaseConnectionManager:
     ) -> Sequence[ConnectionTarget]:
         """Get a list of connection targets for an invitation.
 
-        This will extract target info for either a connection or OOB invitation.
+        This method extracts target information for either a connection or out-of-band
+            (OOB) invitation.
 
         Args:
-            connection: ConnRecord the invitation is associated with.
-            invitation: Connection or OOB invitation retrieved from conn record.
+            connection (ConnRecord): The connection record associated with the invitation.
+            invitation (Union[ConnectionInvitation, InvitationMessage]): The connection
+                or OOB invitation retrieved from the connection record.
+            sender_verkey (str): The sender's verification key.
 
         Returns:
-            A list of `ConnectionTarget` objects
+            Sequence[ConnectionTarget]: A list of `ConnectionTarget` objects
+                representing the connection targets for the invitation.
         """
         if isinstance(invitation, ConnectionInvitation):
             # conn protocol invitation
@@ -656,6 +696,7 @@ class BaseConnectionManager:
         Args:
             connection: The connection record (with associated `DIDDoc`)
                 used to generate the connection target
+            sender_verkey: The verkey we are using
         Returns:
             A list of `ConnectionTarget` objects
         """
@@ -752,9 +793,7 @@ class BaseConnectionManager:
             async with cache.acquire(cache_key) as entry:
                 if entry.result:
                     self._logger.debug("Connection targets retrieved from cache")
-                    targets = [
-                        ConnectionTarget.deserialize(row) for row in entry.result
-                    ]
+                    targets = [ConnectionTarget.deserialize(row) for row in entry.result]
                 else:
                     if not connection:
                         async with self._profile.session() as session:
@@ -769,9 +808,7 @@ class BaseConnectionManager:
                         # Otherwise, a replica that participated early in exchange
                         # may have bad data set in cache.
                         self._logger.debug("Caching connection targets")
-                        await entry.set_result(
-                            [row.serialize() for row in targets], 3600
-                        )
+                        await entry.set_result([row.serialize() for row in targets], 3600)
                     else:
                         self._logger.debug(
                             "Not caching connection targets for connection in "
@@ -830,12 +867,8 @@ class BaseConnectionManager:
                         did=doc.did,
                         endpoint=service.endpoint,
                         label=their_label,
-                        recipient_keys=[
-                            key.value for key in (service.recip_keys or ())
-                        ],
-                        routing_keys=[
-                            key.value for key in (service.routing_keys or ())
-                        ],
+                        recipient_keys=[key.value for key in (service.recip_keys or ())],
+                        routing_keys=[key.value for key in (service.routing_keys or ())],
                         sender_key=sender_verkey,
                     )
                 )
@@ -872,7 +905,18 @@ class BaseConnectionManager:
 
         """
         connection = None
-        if their_did:
+        if their_did and their_did.startswith("did:peer:4"):
+            # did:peer:4 always recorded as long
+            long = their_did
+            short = self.long_did_peer_to_short(their_did)
+            try:
+                async with self._profile.session() as session:
+                    connection = await ConnRecord.retrieve_by_did_peer_4(
+                        session, long, short, my_did
+                    )
+            except StorageNotFoundError:
+                pass
+        elif their_did:
             try:
                 async with self._profile.session() as session:
                     connection = await ConnRecord.retrieve_by_did(
@@ -1041,17 +1085,32 @@ class BaseConnectionManager:
     ) -> Tuple[DIDInfo, DIDInfo, ConnRecord]:
         """Register a new static connection (for use by the test suite).
 
+        This method is used to create a new static connection. It allows overriding
+        various parameters such as DIDs, seeds, verkeys, endpoints, labels, and aliases.
+        It returns the created connection record along with the associated DID
+        information.
+
         Args:
-            my_did: override the DID used in the connection
-            my_seed: provide a seed used to generate our DID and keys
-            their_did: provide the DID used by the other party
-            their_seed: provide a seed used to generate their DID and keys
-            their_verkey: provide the verkey used by the other party
-            their_endpoint: their URL endpoint for routing messages
-            alias: an alias for this connection record
+            my_did (Optional[str]): Override the DID used in the connection.
+            my_seed (Optional[str]): Provide a seed used to generate our DID and keys.
+            their_did (Optional[str]): Provide the DID used by the other party.
+            their_seed (Optional[str]): Provide a seed used to generate their DID and
+                keys.
+            their_verkey (Optional[str]): Provide the verkey used by the other party.
+            their_endpoint (Optional[str]): Their URL endpoint for routing messages.
+            their_label (Optional[str]): An alias for this connection record.
+            alias (Optional[str]): An alias for this connection record.
+            mediation_id (Optional[str]): The mediation ID for routing through a mediator.
 
         Returns:
-            Tuple: my DIDInfo, their DIDInfo, new `ConnRecord` instance
+            Tuple[DIDInfo, DIDInfo, ConnRecord]: A tuple containing the following:
+                - my DIDInfo: The DID information for the local party.
+                - their DIDInfo: The DID information for the other party.
+                - new `ConnRecord` instance: The newly created connection record.
+
+        Raises:
+            BaseConnectionManagerError: If either a verkey or seed must be provided for
+                the other party.
 
         """
         async with self._profile.session() as session:

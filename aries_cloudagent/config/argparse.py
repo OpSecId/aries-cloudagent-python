@@ -58,9 +58,7 @@ class group:
     def get_registered(cls, category: str = None):
         """Fetch the set of registered classes in a category."""
         return (
-            grp
-            for (cats, grp) in cls._registered
-            if category is None or category in cats
+            grp for (cats, grp) in cls._registered if category is None or category in cats
         )
 
 
@@ -556,9 +554,7 @@ class DiscoverFeaturesGroup(ArgumentGroup):
                 if "protocols" in provided_lists:
                     settings["disclose_protocol_list"] = provided_lists.get("protocols")
                 if "goal-codes" in provided_lists:
-                    settings["disclose_goal_code_list"] = provided_lists.get(
-                        "goal-codes"
-                    )
+                    settings["disclose_goal_code_list"] = provided_lists.get("goal-codes")
         return settings
 
 
@@ -1225,6 +1221,13 @@ class ProtocolGroup(ArgumentGroup):
             ),
         )
 
+        parser.add_argument(
+            "--experimental-didcomm-v2",
+            action="store_true",
+            env_var="ACAPY_EXP_DIDCOMM_V2",
+            help="Enable experimental DIDComm V2 support.",
+        )
+
     def get_settings(self, args: Namespace) -> dict:
         """Get protocol settings."""
         settings = {}
@@ -1243,8 +1246,8 @@ class ProtocolGroup(ArgumentGroup):
         if args.requests_through_public_did:
             if not args.public_invites:
                 raise ArgsParseError(
-                    "--public-invites is required to use "
-                    "--requests-through-public-did"
+                    "--public-invites is required to use ",
+                    "--requests-through-public-did",
                 )
             settings["requests_through_public_did"] = True
         if args.timing:
@@ -1290,6 +1293,8 @@ class ProtocolGroup(ArgumentGroup):
         if args.exch_use_unencrypted_tags:
             settings["exch_use_unencrypted_tags"] = True
             environ["EXCH_UNENCRYPTED_TAGS"] = "True"
+        if args.experimental_didcomm_v2:
+            settings["experiment.didcomm_v2"] = True
 
         return settings
 
@@ -1461,9 +1466,7 @@ class TransportGroup(ArgumentGroup):
                 settings["transport.outbound_configs"] = args.outbound_transports
             else:
                 raise ArgsParseError("-ot/--outbound-transport is required")
-            settings["transport.enable_undelivered_queue"] = (
-                args.enable_undelivered_queue
-            )
+            settings["transport.enable_undelivered_queue"] = args.enable_undelivered_queue
             if args.max_message_size:
                 settings["transport.max_message_size"] = args.max_message_size
             if args.max_outbound_retry:
@@ -1570,9 +1573,7 @@ class MediationGroup(ArgumentGroup):
             settings["mediation.clear"] = True
 
         if args.clear_default_mediator and args.default_mediator_id:
-            raise ArgsParseError(
-                "Cannot both set and clear mediation at the same time."
-            )
+            raise ArgsParseError("Cannot both set and clear mediation at the same time.")
 
         return settings
 
@@ -1685,10 +1686,16 @@ class WalletGroup(ArgumentGroup):
             type=str,
             metavar="<key-derivation-method>",
             env_var="ACAPY_WALLET_KEY_DERIVATION_METHOD",
+            help=("Specifies the key derivation method used for wallet encryption."),
+        )
+        parser.add_argument(
+            "--wallet-rekey-derivation-method",
+            type=str,
+            metavar="<rekey-derivation-method>",
+            env_var="ACAPY_WALLET_REKEY_DERIVATION_METHOD",
             help=(
-                "Specifies the key derivation method used for wallet encryption."
-                "If RAW key derivation method is used, also --wallet-key parameter"
-                " is expected."
+                "Specifies the key derivation method used for the replacement"
+                "rekey encryption."
             ),
         )
         parser.add_argument(
@@ -1747,6 +1754,10 @@ class WalletGroup(ArgumentGroup):
             settings["wallet.type"] = args.wallet_type
         if args.wallet_key_derivation_method:
             settings["wallet.key_derivation_method"] = args.wallet_key_derivation_method
+        if args.wallet_rekey_derivation_method:
+            settings["wallet.rekey_derivation_method"] = (
+                args.wallet_rekey_derivation_method
+            )
         if args.wallet_storage_config:
             settings["wallet.storage_config"] = args.wallet_storage_config
         if args.wallet_storage_creds:
@@ -1815,10 +1826,10 @@ class MultitenantGroup(ArgumentGroup):
             env_var="ACAPY_MULTITENANCY_CONFIGURATION",
             help=(
                 "Specify multitenancy configuration in key=value pairs. "
-                'For example: "wallet_type=askar-profile wallet_name=askar-profile-name" '
+                'For example: "wallet_type=single-wallet-askar wallet_name=wallet-name" '
                 "Possible values: wallet_name, wallet_key, cache_size, "
                 'key_derivation_method. "wallet_name" is only used when '
-                '"wallet_type" is "askar-profile"'
+                '"wallet_type" is "single-wallet-askar"'
             ),
         )
         parser.add_argument(

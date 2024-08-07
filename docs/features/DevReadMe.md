@@ -216,12 +216,6 @@ To run specific tests pass parameters as defined by [pytest](https://docs.pytest
 ./scripts/run_tests aries_cloudagent/protocols/connections
 ```
 
-To run the tests including [Indy SDK](https://github.com/hyperledger/indy-sdk) and related dependencies, run the script:
-
-```bash
-./scripts/run_tests_indy
-```
-
 ### Running Aries Agent Test Harness Tests
 
 You can run a full suite of integration tests using the [Aries Agent Test Harness (AATH)](https://github.com/hyperledger/aries-agent-test-harness).
@@ -240,8 +234,6 @@ The `manage` script is described in detail [here](https://github.com/hyperledger
 ## Development Workflow
 
 We use [Ruff](https://github.com/astral-sh/ruff) to enforce a coding style guide.
-
-We use [Black](https://black.readthedocs.io/en/stable/) to automatically format code.
 
 Please write tests for the work that you submit.
 
