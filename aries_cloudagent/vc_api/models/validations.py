@@ -15,6 +15,7 @@ class Uri(Regexp):
         """Initialize the instance."""
         super().__init__(Uri.PATTERN, error="Value {input} is not URI")
 
+
 class NameAttribute(Validator):
 
     def __init__(self) -> None:
@@ -26,17 +27,14 @@ class NameAttribute(Validator):
         if isinstance(value, list):
             for item in value:
                 for key in item:
-                    if key not in ['@value', '@language', '@direction']:
-                        raise ValidationError(
-                            f"Invalid extra name property {key}."
-                        )
+                    if key not in ["@value", "@language", "@direction"]:
+                        raise ValidationError(f"Invalid extra name property {key}.")
         if isinstance(value, dict):
             for key in value:
-                if key not in ['@value', '@language', '@direction']:
-                    raise ValidationError(
-                        f"Invalid extra name property {key}."
-                    )
+                if key not in ["@value", "@language", "@direction"]:
+                    raise ValidationError(f"Invalid extra name property {key}.")
         return value
+
 
 class DescriptionAttribute(Validator):
 
@@ -49,17 +47,16 @@ class DescriptionAttribute(Validator):
         if isinstance(value, list):
             for item in value:
                 for key in item:
-                    if key not in ['@value', '@language', '@direction']:
+                    if key not in ["@value", "@language", "@direction"]:
                         raise ValidationError(
                             f"Invalid extra description property {key}."
                         )
         if isinstance(value, dict):
             for key in value:
-                if key not in ['@value', '@language', '@direction']:
-                    raise ValidationError(
-                        f"Invalid extra description property {key}."
-                    )
+                if key not in ["@value", "@language", "@direction"]:
+                    raise ValidationError(f"Invalid extra description property {key}.")
         return value
+
 
 class CredentialContext(Validator):
     """Credential Context."""
@@ -101,12 +98,15 @@ class CredentialType(Validator):
         """Validate input value."""
         if isinstance(value, list):
             if CredentialType.CREDENTIAL_TYPE not in value:
-                raise ValidationError(f"type must include {CredentialType.CREDENTIAL_TYPE}")
+                raise ValidationError(
+                    f"type must include {CredentialType.CREDENTIAL_TYPE}"
+                )
         elif isinstance(value, str):
             if CredentialType.CREDENTIAL_TYPE != value:
                 raise ValidationError(f"type must be {CredentialType.CREDENTIAL_TYPE}")
 
         return value
+
 
 class PresentationType(Validator):
     """Credential Type."""
@@ -122,7 +122,9 @@ class PresentationType(Validator):
         """Validate input value."""
         length = len(value)
         if length < 1 or PresentationType.PRESETNATION_TYPE not in value:
-            raise ValidationError(f"type must include {PresentationType.PRESETNATION_TYPE}")
+            raise ValidationError(
+                f"type must include {PresentationType.PRESETNATION_TYPE}"
+            )
 
         return value
 
@@ -165,9 +167,7 @@ class CredentialSubject(Validator):
 class VerifiableCredential(Validator):
     """Credential subject."""
 
-    EXAMPLE = {
-        "name": "Alice"
-    }
+    EXAMPLE = {"name": "Alice"}
 
     def __init__(self) -> None:
         """Initialize the instance."""

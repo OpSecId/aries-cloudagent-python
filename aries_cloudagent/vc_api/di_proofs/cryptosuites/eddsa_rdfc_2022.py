@@ -6,9 +6,9 @@ from hashlib import sha256
 import nacl
 
 from ....utils.multiformats import multibase
+from ..keys.wallet_key_pair import WalletKeyPair
 from ...document_loader import DocumentLoader
-from ..keys import _KeyPair as KeyPair
-from ..di_signature import DataIntegritySignature
+from ....wallet.key_type import ED25519
 from .. import DataIntegrityProofException
 from ...resources.constants import (
     CREDENTIALS_CONTEXT_V2_URL,
@@ -16,19 +16,27 @@ from ...resources.constants import (
 )
 
 
-class EddsaRdfc2022(DataIntegritySignature):
+class EddsaRdfc2022:
     """EddsaRdfc2022 suite."""
 
-    def __init__(self, *, key_pair: KeyPair = None, document_loader: DocumentLoader):
+    def __init__(self, *, profile, verification_method=None, verkey=None):
         """Create new EddsaRdfc2022 instance.
 
         Args:
-            key_pair (KeyPair): Key pair to use. Must provide EdDSA signatures
-            document_loader (DocumentLoader): Document loader to use.
+            profile: Context Profile
+            verification_method: Verification Method Object containing a verkey
+            verkey: Public Key Base 58 Encoded
         """
         super().__init__()
-        self.key_pair = key_pair
-        self.document_loader = document_loader
+        self.document_loader = DocumentLoader(profile)
+        if verkey:
+            self.key_pair = WalletKeyPair(profile, ED25519, verkey)
+        elif verification_method:
+            self.key_pair = WalletKeyPair(profile, ED25519).from_verification_method(
+                verification_method
+            )
+        else:
+            self.key_pair = None
 
     async def _prep_input(self, unsecured_data_document, proof_config):
         try:
@@ -121,12 +129,8 @@ class EddsaRdfc2022(DataIntegritySignature):
         if did.split(":")[1] == "key":
             pub_key = multibase.decode(did.split(":")[-1])
             pub_key = bytes(bytearray(pub_key)[2:])
-        # elif did.split(':')[1] == 'web':
-        #     pass
-        # elif did.split(':')[1] == 'tdw':
-        #     pass
-        # elif did.split(':')[1] == 'indy':
-        #     pass
+        else:
+            pub_key = None
 
         try:
             nacl.bindings.crypto_sign_open(signature + hash_data, pub_key)

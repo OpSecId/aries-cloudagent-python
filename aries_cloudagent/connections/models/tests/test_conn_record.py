@@ -48,7 +48,9 @@ class TestConnRecord(IsolatedAsyncioTestCase):
         assert ConnRecord.Role.get("Larry") is None
         assert ConnRecord.State.get("a suffusion of yellow") is None
 
-        assert ConnRecord.Role.get(ConnRecord.Role.REQUESTER) is ConnRecord.Role.REQUESTER
+        assert (
+            ConnRecord.Role.get(ConnRecord.Role.REQUESTER) is ConnRecord.Role.REQUESTER
+        )
 
         assert (
             ConnRecord.State.get(ConnRecord.State.RESPONSE) is ConnRecord.State.RESPONSE
@@ -372,7 +374,9 @@ class TestConnRecord(IsolatedAsyncioTestCase):
         connection_id = await record.save(self.session)
 
         req = ConnectionRequest(
-            connection=ConnectionDetail(did=self.test_did, did_doc=DIDDoc(self.test_did)),
+            connection=ConnectionDetail(
+                did=self.test_did, did_doc=DIDDoc(self.test_did)
+            ),
             label="abc123",
         )
         await record.attach_request(self.session, req)
@@ -387,7 +391,9 @@ class TestConnRecord(IsolatedAsyncioTestCase):
         connection_id = await record.save(self.session)
 
         req = ConnectionRequest(
-            connection=ConnectionDetail(did=self.test_did, did_doc=DIDDoc(self.test_did)),
+            connection=ConnectionDetail(
+                did=self.test_did, did_doc=DIDDoc(self.test_did)
+            ),
             label="abc123",
         )
         ser = req.serialize()

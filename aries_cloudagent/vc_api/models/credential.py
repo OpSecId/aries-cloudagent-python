@@ -70,8 +70,6 @@ class CredentialBase(BaseModel):
         description: Optional[str] = None,
         valid_from: Optional[str] = None,
         valid_until: Optional[str] = None,
-        issuance_date: Optional[str] = None,
-        expiration_date: Optional[str] = None,
         credential_schema: Optional[Union[dict, List[dict]]] = None,
         credential_subject: Optional[Union[dict, List[dict]]] = None,
         credential_status: Optional[Union[dict, List[dict]]] = None,
@@ -91,8 +89,6 @@ class CredentialBase(BaseModel):
         self._description = description
         self._valid_from = valid_from
         self._valid_until = valid_until
-        self._issuance_date = issuance_date
-        self._expiration_date = expiration_date
         self._credential_subject = credential_subject
         self._credential_schema = credential_schema
         self._credential_status = credential_status
@@ -258,36 +254,6 @@ class CredentialBase(BaseModel):
         self._valid_until = date
 
     @property
-    def issuance_date(self):
-        """Getter for issuance date."""
-        return self._issuance_date
-
-    @issuance_date.setter
-    def issuance_date(self, date: Union[str, datetime]):
-        """Setter for issuance date."""
-        if isinstance(date, datetime):
-            if not date.tzinfo:
-                date = date.replace(tzinfo=tz.UTC)
-            date = date.isoformat()
-
-        self._issuance_date = date
-
-    @property
-    def expiration_date(self):
-        """Getter for expiration date."""
-        return self._expiration_date
-
-    @expiration_date.setter
-    def expiration_date(self, date: Union[str, datetime]):
-        """Setter for expiration date."""
-        if isinstance(date, datetime):
-            if not date.tzinfo:
-                date = date.replace(tzinfo=tz.UTC)
-            date = date.isoformat()
-
-        self._expiration_date = date
-
-    @property
     def credential_subject_ids(self) -> List[str]:
         """Getter for credential subject ids."""
         if not self._credential_subject:
@@ -374,8 +340,6 @@ class CredentialBase(BaseModel):
                 and self.description == o.description
                 and self.valid_from == o.valid_from
                 and self.valid_until == o.valid_until
-                and self.issuance_date == o.issuance_date
-                and self.expiration_date == o.expiration_date
                 and self.credential_subject == o.credential_subject
                 and self.credential_schema == o.credential_schema
                 and self.credential_status == o.credential_status
@@ -440,13 +404,9 @@ class CredentialBaseSchema(BaseModelSchema):
         },
     )
 
-    name = StrOrDictOrListDictField(
-        required=False
-    )
+    name = StrOrDictOrListDictField(required=False)
 
-    description = StrOrDictOrListDictField(
-        required=False
-    )
+    description = StrOrDictOrListDictField(required=False)
 
     valid_from = fields.Str(
         required=False,
@@ -458,20 +418,6 @@ class CredentialBaseSchema(BaseModelSchema):
     valid_until = fields.Str(
         required=False,
         data_key="validUntil",
-        validate=RFC3339_DATETIME_VALIDATE,
-        metadata={"example": RFC3339_DATETIME_EXAMPLE},
-    )
-
-    issuance_date = fields.Str(
-        required=False,
-        data_key="issuanceDate",
-        validate=RFC3339_DATETIME_VALIDATE,
-        metadata={"example": RFC3339_DATETIME_EXAMPLE},
-    )
-
-    expiration_date = fields.Str(
-        required=False,
-        data_key="expirationDate",
         validate=RFC3339_DATETIME_VALIDATE,
         metadata={"example": RFC3339_DATETIME_EXAMPLE},
     )
@@ -561,8 +507,6 @@ class VerifiableCredentialBase(CredentialBase):
         description: Optional[str] = None,
         valid_from: Optional[str] = None,
         valid_until: Optional[str] = None,
-        issuance_date: Optional[str] = None,
-        expiration_date: Optional[str] = None,
         credential_schema: Optional[Union[dict, List[dict]]] = None,
         credential_subject: Optional[Union[dict, List[dict]]] = None,
         credential_status: Optional[Union[dict, List[dict]]] = None,
@@ -581,8 +525,6 @@ class VerifiableCredentialBase(CredentialBase):
         self._description = description
         self._valid_from = valid_from
         self._valid_until = valid_until
-        self._issuance_date = issuance_date
-        self._expiration_date = expiration_date
         self._credential_subject = credential_subject
         self._credential_schema = credential_schema
         self._credential_status = credential_status

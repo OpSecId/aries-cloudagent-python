@@ -1,23 +1,14 @@
 """VC-API Routes."""
 
 from aiohttp import web
-from aiohttp_apispec import docs, querystring_schema, request_schema, response_schema
+from aiohttp_apispec import docs, request_schema, response_schema
 from marshmallow.exceptions import ValidationError
-from uuid_utils import uuid4
-from datetime import datetime
 
 from ..admin.decorators.auth import tenant_authentication
 from ..admin.request_context import AdminRequestContext
 from ..config.base import InjectionError
 from ..resolver.base import ResolverError
-from ..storage.error import StorageDuplicateError, StorageError, StorageNotFoundError
-from ..storage.vc_holder.base import VCHolder
-from ..wallet.base import BaseWallet
 from ..wallet.error import WalletError
-from .resources.constants import (
-    CREDENTIALS_CONTEXT_V1_URL,
-    CREDENTIALS_CONTEXT_V2_URL,
-)
 from .services import (
     IssuerService,
     IssuerServiceError,
@@ -29,16 +20,11 @@ from .services import (
 from .models import (
     CredentialBase,
     PresentationBase,
-    VerifiableCredentialBase,
     IssuanceOptions,
     VerificationOptions,
 )
 from .models.web_requests import (
-    ListCredentialsResponse,
-    FetchCredentialResponse,
     CreateStatusCredentialRequest,
-    CreateStatusCredentialResponse,
-    IssueCredentialQueryStringSchema,
     IssueCredentialRequest,
     IssueCredentialResponse,
     VerifyCredentialRequest,
@@ -48,7 +34,6 @@ from .models.web_requests import (
 
 
 @docs(tags=["vc-api"], summary="Issue a credential")
-# @querystring_schema(IssueCredentialQueryStringSchema())
 @request_schema(IssueCredentialRequest())
 @response_schema(IssueCredentialResponse(), 201, description="")
 @tenant_authentication
@@ -70,7 +55,13 @@ async def issue_credential_route(request: web.BaseRequest):
 
         return web.json_response({"verifiableCredential": vc}, status=201)
 
-    except (KeyError, ValidationError, IssuerServiceError, WalletError, InjectionError) as err:
+    except (
+        KeyError,
+        ValidationError,
+        IssuerServiceError,
+        WalletError,
+        InjectionError,
+    ) as err:
         return web.json_response({"message": str(err)}, status=400)
 
 
@@ -239,18 +230,10 @@ async def register(app: web.Application):
 
     app.add_routes(
         [
-            # web.get("/vc/credentials", list_credentials_route, allow_head=False),
-            # web.get(
-            #     "/vc/credentials/{credential_id}",
-            #     fetch_credential_route,
-            #     allow_head=False,
-            # ),
             web.post("/vc/credentials/issue", issue_credential_route),
             web.post("/vc/credentials/verify", verify_credential_route),
             web.post("/vc/presentations/verify", verify_presentation_route),
             web.post("/vc/status-list", create_status_credential_route),
-            # web.post("/vc/credentials/store", store_credential_route),
-            # web.post("/vc/presentations/prove", prove_presentation_route),
         ]
     )
 

@@ -8,9 +8,9 @@ import nacl
 from typing import List
 
 from ....utils.multiformats import multibase
+from ..keys.wallet_key_pair import WalletKeyPair
 from ...document_loader import DocumentLoader
-from ..keys import _KeyPair as KeyPair
-from ..di_signature import DataIntegritySignature
+from ....wallet.key_type import ED25519
 from .. import DataIntegrityProofException
 from ...resources.constants import (
     CREDENTIALS_CONTEXT_V2_URL,
@@ -18,18 +18,27 @@ from ...resources.constants import (
 )
 
 
-class EddsaJcs2022(DataIntegritySignature):
+class EddsaJcs2022:
     """EddsaJcs2022 suite."""
 
-    def __init__(self, *, key_pair: KeyPair = None, document_loader: DocumentLoader):
+    def __init__(self, *, profile, verification_method=None, verkey=None):
         """Create new EddsaJcs2022 instance.
 
         Args:
-            key_pair (KeyPair): Key pair to use. Must provide EdDSA signatures
+            profile: Context Profile
+            verification_method: Verification Method Object containing a verkey
+            verkey: Public Key Base 58 Encoded
         """
         super().__init__()
-        self.key_pair = key_pair
-        self.document_loader = document_loader
+        self.document_loader = DocumentLoader(profile)
+        if verkey:
+            self.key_pair = WalletKeyPair(profile, ED25519, verkey)
+        elif verification_method:
+            self.key_pair = WalletKeyPair(profile, ED25519).from_verification_method(
+                verification_method
+            )
+        else:
+            self.key_pair = None
 
     async def _prep_input(self, unsecured_data_document, proof_config):
         try:

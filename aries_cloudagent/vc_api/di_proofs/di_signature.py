@@ -3,7 +3,6 @@
 from abc import ABCMeta, abstractmethod
 from datetime import datetime, timezone
 from hashlib import sha256
-from typing import Optional, Union
 
 from dateutil import tz
 

@@ -109,7 +109,9 @@ class TestV20PresProposal(TestCase):
                 ],
                 proposals_attach=[AttachDecorator.data_base64(proof_req, ident="indy")],
             )
-            assert pres_proposal._type == DIDCommPrefix.qualify_current(PRES_20_PROPOSAL)
+            assert pres_proposal._type == DIDCommPrefix.qualify_current(
+                PRES_20_PROPOSAL
+            )
             assert pres_proposal.attachment(V20PresFormat.Format.INDY) == proof_req
 
             pres_proposal_ser = pres_proposal.serialize()

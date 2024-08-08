@@ -450,7 +450,9 @@ class BaseConnectionManager:
             doc_dict: dict = await resolver.resolve(self._profile, did, service_accept)
             doc: ResolvedDocument = pydid.deserialize_document(doc_dict, strict=True)
         except ResolverError as error:
-            raise BaseConnectionManagerError("Failed to resolve DID services") from error
+            raise BaseConnectionManagerError(
+                "Failed to resolve DID services"
+            ) from error
 
         if not doc.service:
             raise BaseConnectionManagerError(
@@ -519,7 +521,10 @@ class BaseConnectionManager:
 
         return (
             endpoint,
-            [self._extract_key_material_in_base58_format(key) for key in recipient_keys],
+            [
+                self._extract_key_material_in_base58_format(key)
+                for key in recipient_keys
+            ],
             [self._extract_key_material_in_base58_format(key) for key in routing_keys],
         )
 
@@ -793,7 +798,9 @@ class BaseConnectionManager:
             async with cache.acquire(cache_key) as entry:
                 if entry.result:
                     self._logger.debug("Connection targets retrieved from cache")
-                    targets = [ConnectionTarget.deserialize(row) for row in entry.result]
+                    targets = [
+                        ConnectionTarget.deserialize(row) for row in entry.result
+                    ]
                 else:
                     if not connection:
                         async with self._profile.session() as session:
@@ -808,7 +815,9 @@ class BaseConnectionManager:
                         # Otherwise, a replica that participated early in exchange
                         # may have bad data set in cache.
                         self._logger.debug("Caching connection targets")
-                        await entry.set_result([row.serialize() for row in targets], 3600)
+                        await entry.set_result(
+                            [row.serialize() for row in targets], 3600
+                        )
                     else:
                         self._logger.debug(
                             "Not caching connection targets for connection in "
@@ -867,8 +876,12 @@ class BaseConnectionManager:
                         did=doc.did,
                         endpoint=service.endpoint,
                         label=their_label,
-                        recipient_keys=[key.value for key in (service.recip_keys or ())],
-                        routing_keys=[key.value for key in (service.routing_keys or ())],
+                        recipient_keys=[
+                            key.value for key in (service.recip_keys or ())
+                        ],
+                        routing_keys=[
+                            key.value for key in (service.routing_keys or ())
+                        ],
                         sender_key=sender_verkey,
                     )
                 )

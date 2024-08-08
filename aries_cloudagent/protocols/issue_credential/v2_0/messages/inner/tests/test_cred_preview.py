@@ -26,7 +26,9 @@ class TestV20CredAttrSpec(TestCase):
         attr_previews_different = [
             V20CredAttrSpec(name="item", value="dmFsdWU=", mime_type="image/png"),
             V20CredAttrSpec(name="item", value="distinct value"),
-            V20CredAttrSpec(name="distinct_name", value="distinct value", mime_type=None),
+            V20CredAttrSpec(
+                name="distinct_name", value="distinct value", mime_type=None
+            ),
         ]
 
         for lhs in attr_previews_none_plain:

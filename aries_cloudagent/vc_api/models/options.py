@@ -192,23 +192,10 @@ class VerificationOptionsSchema(BaseModelSchema):
         unknown = INCLUDE
         model_class = VerificationOptions
 
-    checks = fields.List(
-        fields.Str(),
-        data_key="checks",
-        required=False
-    )
+    checks = fields.List(fields.Str(), data_key="checks", required=False)
 
-    domain = fields.Str(
-        data_key="domain",
-        required=False
-    )
+    domain = fields.Str(data_key="domain", required=False)
 
-    challenge = fields.Str(
-        data_key="challenge",
-        required=False
-    )
+    challenge = fields.Str(data_key="challenge", required=False)
 
-    expected_proof_purpose = fields.Str(
-        data_key="expectedProofPurpose",
-        required=False
-    )
+    expected_proof_purpose = fields.Str(data_key="expectedProofPurpose", required=False)

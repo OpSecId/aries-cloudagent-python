@@ -237,7 +237,9 @@ class IndyRevocation:
         triggered and the caller should retry after a delay.
         """
         try:
-            active_rev_reg_rec = await self.get_active_issuer_rev_reg_record(cred_def_id)
+            active_rev_reg_rec = await self.get_active_issuer_rev_reg_record(
+                cred_def_id
+            )
             rev_reg = active_rev_reg_rec.get_registry()
             await rev_reg.get_or_fetch_local_tails_path()
             return active_rev_reg_rec, rev_reg
