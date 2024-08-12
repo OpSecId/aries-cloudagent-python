@@ -506,6 +506,20 @@ class DebugGroup(ArgumentGroup):
             env_var="ACAPY_W3C_VC_STATUS_LIST_SERVER",
             help=("The statusList server to use."),
         )
+        parser.add_argument(
+            "--did-web-server",
+            type=str,
+            metavar="<did-web-server>",
+            env_var="ACAPY_DID_WEB_SERVER",
+            help=("The did web server to use."),
+        )
+        parser.add_argument(
+            "--did-web-endorser",
+            type=str,
+            metavar="<did-web-endorser>",
+            env_var="ACAPY_DID_WEB_ENDORSER",
+            help=("The did web endorser to use (expecting a did:key: as value)."),
+        )
 
     def get_settings(self, args: Namespace) -> dict:
         """Extract debug settings."""
@@ -516,6 +530,10 @@ class DebugGroup(ArgumentGroup):
             settings["w3c_vc.securing_mechanism"] = args.w3c_vc_securing_mechanism
         if args.w3c_vc_status_list_server:
             settings["w3c_vc.status_list_server"] = args.w3c_vc_status_list_server
+        if args.did_web_server:
+            settings["did_web.server"] = args.did_web_server
+        if args.did_web_endorser:
+            settings["did_web.endorser"] = args.did_web_endorser
         return settings
 
 

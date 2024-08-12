@@ -19,6 +19,7 @@ from ..di_proofs.keys.wallet_key_pair import WalletKeyPair
 from ..di_proofs.purposes.assertion_proof_purpose import AssertionProofPurpose
 from ..di_proofs.cryptosuites import CRYPTOSUITES
 from ..models import CredentialBase, VerifiableCredentialBase, IssuanceOptions
+from ..di_proofs.keys.wallet_key_pair import WalletKeyPair
 from datetime import datetime, timezone
 
 # from ..services import (
@@ -90,6 +91,23 @@ class IssuerService:
             return await self._sign_vc_jose(credential, options)
 
         raise IssuerServiceError(f"Invalid securing mechanism {securing_mechanism}")
+
+    async def add_proof(self, document, options):
+        did = options['verificationMethod'].split('#')[0]
+
+        # Get issuer information stored in the wallet
+        async with self.profile.session() as session:
+            did_info = await session.inject(BaseWallet).get_local_did(did)
+            
+        suite = CRYPTOSUITES[options['cryptosuite']](
+            profile=self.profile,
+            verkey=did_info.verkey,
+        )
+        signed_document = await suite.add_proof(
+            unsecured_data_document=document, proof_config=options
+        )
+
+        return signed_document
 
     async def _sign_vc_di(self, credential: CredentialBase, options: IssuanceOptions):
         """Sign a VC with Data Integrity."""

@@ -32,9 +32,9 @@ class EddsaJcs2022:
         super().__init__()
         self.document_loader = DocumentLoader(profile)
         if verkey:
-            self.key_pair = WalletKeyPair(profile, ED25519, verkey)
+            self.key_pair = WalletKeyPair(profile=profile, key_type=ED25519, public_key_base58=verkey)
         elif verification_method:
-            self.key_pair = WalletKeyPair(profile, ED25519).from_verification_method(
+            self.key_pair = WalletKeyPair(profile=profile, key_type=ED25519).from_verification_method(
                 verification_method
             )
         else:
@@ -64,15 +64,15 @@ class EddsaJcs2022:
         assert proof_config["type"] == "DataIntegrityProof"
         assert proof_config["cryptosuite"] == "eddsa-jcs-2022"
 
-        # Ensure the Data Integrity context is included for vcdm 1.1
-        if (
-            SECURITY_DATA_INTEGRITY_CONTEXT_V2_URL
-            not in unsecured_data_document["@context"]
-            and unsecured_data_document["@context"][0] != CREDENTIALS_CONTEXT_V2_URL
-        ):
-            unsecured_data_document["@context"].append(
-                SECURITY_DATA_INTEGRITY_CONTEXT_V2_URL
-            )
+        # # Ensure the Data Integrity context is included for vcdm 1.1
+        # if (
+        #     SECURITY_DATA_INTEGRITY_CONTEXT_V2_URL
+        #     not in unsecured_data_document["@context"]
+        #     and unsecured_data_document["@context"][0] != CREDENTIALS_CONTEXT_V2_URL
+        # ):
+        #     unsecured_data_document["@context"].append(
+        #         SECURITY_DATA_INTEGRITY_CONTEXT_V2_URL
+        #     )
 
         hash_data = await self._prep_input(unsecured_data_document, proof_config)
 
