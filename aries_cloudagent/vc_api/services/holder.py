@@ -17,7 +17,12 @@ from ..resources.constants import (
 from ..document_loader import DocumentLoader
 from ..crypto.keys.wallet_key_pair import WalletKeyPair
 from ..crypto.purposes.assertion_proof_purpose import AssertionProofPurpose
-from ..models import CredentialBase, VerifiableCredentialBase, IssuanceOptions, PresentationBase
+from ..models import (
+    CredentialBase,
+    VerifiableCredentialBase,
+    IssuanceOptions,
+    PresentationBase,
+)
 from datetime import datetime, timezone
 from ..crypto.suites import CRYPTOSUITES
 
@@ -116,7 +121,7 @@ class HolderService:
         elif options.type in ["Ed25519Signature2020"]:
             proof_config.pop("cryptosuite")
             suite_label = options.type
-            
+
         try:
             suite = CRYPTOSUITES[suite_label]["suite"](
                 document_loader=DocumentLoader(self.profile),
@@ -127,7 +132,7 @@ class HolderService:
                 ),
             )
         except:
-            raise HolderServiceError('Invalid cryptosuite')
+            raise HolderServiceError("Invalid cryptosuite")
 
         # Create proof
         unsecured_data_document = credential.serialize()

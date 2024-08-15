@@ -70,7 +70,13 @@ async def issue_credential_route(request: web.BaseRequest):
 
         return web.json_response({"verifiableCredential": vc}, status=201)
 
-    except (KeyError, ValidationError, IssuerServiceError, WalletError, InjectionError) as err:
+    except (
+        KeyError,
+        ValidationError,
+        IssuerServiceError,
+        WalletError,
+        InjectionError,
+    ) as err:
         return web.json_response({"message": str(err)}, status=400)
 
 
@@ -90,10 +96,12 @@ async def verify_credential_route(request: web.BaseRequest):
     try:
         vc = body["verifiableCredential"]
         options = {} if "options" not in body else body["options"]
-        result = await VerifierService(context.profile).verify_credential(
+        verification_response = await VerifierService(context.profile).verify_credential(
             CredentialBase.deserialize(vc), VerificationOptions.deserialize(options)
         )
-        return web.json_response(result)
+        if 'credentialStatus' in vc:
+            verification_response['status'] = StatusService(context.profile).validate(vc)
+        return web.json_response(verification_response)
     except (
         KeyError,
         ValidationError,

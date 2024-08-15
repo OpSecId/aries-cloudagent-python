@@ -162,7 +162,9 @@ class TestIndyRevocation(IsolatedAsyncioTestCase):
         recs = await self.revoc.list_issuer_registries()
         assert len(recs) == 2
 
-        init_list = list(filter(lambda r: r.state == IssuerRevRegRecord.STATE_INIT, recs))
+        init_list = list(
+            filter(lambda r: r.state == IssuerRevRegRecord.STATE_INIT, recs)
+        )
         assert len(init_list) == 2
 
         # store the ids to verify they are decommissioned
@@ -203,10 +205,14 @@ class TestIndyRevocation(IsolatedAsyncioTestCase):
             filter(lambda r: r.state == IssuerRevRegRecord.STATE_DECOMMISSIONED, recs)
         )
         assert len(decomm_list) == 2
-        decomm_rev_reg_ids = [rec.revoc_reg_id for rec in decomm_list if rec.revoc_reg_id]
+        decomm_rev_reg_ids = [
+            rec.revoc_reg_id for rec in decomm_list if rec.revoc_reg_id
+        ]
 
         # new ones replacing the decommissioned are in init state
-        init_list = list(filter(lambda r: r.state == IssuerRevRegRecord.STATE_INIT, recs))
+        init_list = list(
+            filter(lambda r: r.state == IssuerRevRegRecord.STATE_INIT, recs)
+        )
         assert len(init_list) == 2
 
         # check that the original rev reg ids are decommissioned
@@ -299,7 +305,9 @@ class TestIndyRevocation(IsolatedAsyncioTestCase):
         mock.CoroutineMock(return_value=None),
     )
     @mock.patch.object(IssuerRevRegRecord, "query_by_cred_def_id", side_effect=[[], []])
-    async def test_get_or_create_active_registry_has_no_active_or_any_registry(self, *_):
+    async def test_get_or_create_active_registry_has_no_active_or_any_registry(
+        self, *_
+    ):
         with self.assertRaises(RevocationError):
             await self.revoc.get_or_create_active_registry("cred_def_id")
 

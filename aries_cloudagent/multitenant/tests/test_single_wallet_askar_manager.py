@@ -74,7 +74,9 @@ class TestSingleWalletAskarMultitenantManager(IsolatedAsyncioTestCase):
                 sub_wallet_profile.opened, sub_wallet_profile_context, profile_id="test"
             )
             assert sub_wallet_profile_context.settings.get("wallet.seed") == "test_seed"
-            assert sub_wallet_profile_context.settings.get("wallet.rekey") == "test_rekey"
+            assert (
+                sub_wallet_profile_context.settings.get("wallet.rekey") == "test_rekey"
+            )
             assert sub_wallet_profile_context.settings.get("wallet.name") == "test_name"
             assert sub_wallet_profile_context.settings.get("wallet.type") == "test_type"
             assert sub_wallet_profile_context.settings.get("mediation.open") is True
@@ -175,7 +177,9 @@ class TestSingleWalletAskarMultitenantManager(IsolatedAsyncioTestCase):
 
                 wallet_config.side_effect = side_effect
 
-                await self.manager.get_wallet_profile(self.profile.context, wallet_record)
+                await self.manager.get_wallet_profile(
+                    self.profile.context, wallet_record
+                )
 
                 wallet_config.assert_called_once()
                 assert (

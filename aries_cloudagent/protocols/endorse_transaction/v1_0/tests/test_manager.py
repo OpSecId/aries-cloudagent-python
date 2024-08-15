@@ -156,7 +156,9 @@ class TestTransactionManager(IsolatedAsyncioTestCase):
                 transaction_record.messages_attach[0]["data"]["json"]
                 == self.test_messages_attach
             )
-            assert transaction_record.state == TransactionRecord.STATE_TRANSACTION_CREATED
+            assert (
+                transaction_record.state == TransactionRecord.STATE_TRANSACTION_CREATED
+            )
 
     async def test_txn_rec_retrieve_by_connection_and_thread_caching(self):
         async with self.profile.session() as sesn:
@@ -601,7 +603,8 @@ class TestTransactionManager(IsolatedAsyncioTestCase):
         assert transaction_record.state == TransactionRecord.STATE_TRANSACTION_REFUSED
 
         assert (
-            refused_transaction_response.transaction_id == self.test_author_transaction_id
+            refused_transaction_response.transaction_id
+            == self.test_author_transaction_id
         )
         assert refused_transaction_response.thread_id == transaction_record._id
         assert refused_transaction_response.signature_response == {
@@ -637,7 +640,9 @@ class TestTransactionManager(IsolatedAsyncioTestCase):
         mock_response.endorser_did = self.test_refuser_did
 
         with mock.patch.object(TransactionRecord, "save", autospec=True) as save_record:
-            transaction_record = await self.manager.receive_refuse_response(mock_response)
+            transaction_record = await self.manager.receive_refuse_response(
+                mock_response
+            )
             save_record.assert_called_once()
 
         assert transaction_record._type == TransactionRecord.SIGNATURE_RESPONSE
@@ -683,7 +688,9 @@ class TestTransactionManager(IsolatedAsyncioTestCase):
 
         assert transaction_record.state == TransactionRecord.STATE_TRANSACTION_CANCELLED
 
-        assert cancelled_transaction_response.thread_id == self.test_author_transaction_id
+        assert (
+            cancelled_transaction_response.thread_id == self.test_author_transaction_id
+        )
         assert (
             cancelled_transaction_response.state
             == TransactionRecord.STATE_TRANSACTION_CANCELLED

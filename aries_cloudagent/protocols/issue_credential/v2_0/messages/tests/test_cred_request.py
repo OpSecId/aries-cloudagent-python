@@ -50,7 +50,9 @@ class TestV20CredRequest(IsolatedAsyncioTestCase):
         formats=[
             V20CredFormat(
                 attach_id="indy",
-                format_=ATTACHMENT_FORMAT[CRED_20_REQUEST][V20CredFormat.Format.INDY.api],
+                format_=ATTACHMENT_FORMAT[CRED_20_REQUEST][
+                    V20CredFormat.Format.INDY.api
+                ],
             )
         ],
         requests_attach=[

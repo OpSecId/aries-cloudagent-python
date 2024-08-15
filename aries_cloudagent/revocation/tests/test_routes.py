@@ -77,7 +77,9 @@ class TestRevocationRoutes(IsolatedAsyncioTestCase):
             with self.assertRaises(test_module.ValidationError):
                 req.validate_fields({"rev_reg_id": test_module.INDY_REV_REG_ID_EXAMPLE})
             with self.assertRaises(test_module.ValidationError):
-                req.validate_fields({"cred_rev_id": test_module.INDY_CRED_REV_ID_EXAMPLE})
+                req.validate_fields(
+                    {"cred_rev_id": test_module.INDY_CRED_REV_ID_EXAMPLE}
+                )
             with self.assertRaises(test_module.ValidationError):
                 req.validate_fields(
                     {
@@ -136,7 +138,9 @@ class TestRevocationRoutes(IsolatedAsyncioTestCase):
             test_module,
             "get_endorser_connection_id",
             mock.CoroutineMock(return_value="dummy-conn-id"),
-        ), mock.patch.object(test_module.web, "json_response"):
+        ), mock.patch.object(
+            test_module.web, "json_response"
+        ):
             mock_mgr.return_value.revoke_credential = mock.CoroutineMock(
                 return_value={"result": "..."}
             )
@@ -183,7 +187,9 @@ class TestRevocationRoutes(IsolatedAsyncioTestCase):
             test_module,
             "get_endorser_connection_id",
             mock.CoroutineMock(return_value="dummy-conn-id"),
-        ), mock.patch.object(test_module.web, "json_response"):
+        ), mock.patch.object(
+            test_module.web, "json_response"
+        ):
             mock_mgr.return_value.revoke_credential = mock.CoroutineMock(
                 return_value={"result": "..."}
             )
@@ -290,7 +296,9 @@ class TestRevocationRoutes(IsolatedAsyncioTestCase):
 
             await test_module.publish_revocations(self.request)
 
-            mock_response.assert_called_once_with({"rrid2crid": pub_pending.return_value})
+            mock_response.assert_called_once_with(
+                {"rrid2crid": pub_pending.return_value}
+            )
 
     async def test_publish_revocations_x(self):
         self.request.json = mock.CoroutineMock()
@@ -371,7 +379,9 @@ class TestRevocationRoutes(IsolatedAsyncioTestCase):
             test_module,
             "get_endorser_connection_id",
             mock.CoroutineMock(return_value=None),
-        ), mock.patch.object(test_module.web, "json_response") as mock_response:
+        ), mock.patch.object(
+            test_module.web, "json_response"
+        ) as mock_response:
             pub_pending = mock.CoroutineMock()
             mock_mgr.return_value.publish_pending_revocations = pub_pending
             with self.assertRaises(test_module.web.HTTPBadRequest):
@@ -950,7 +960,9 @@ class TestRevocationRoutes(IsolatedAsyncioTestCase):
         )
         self.request.match_info = {"rev_reg_id": REV_REG_ID}
         self.request.json = mock.CoroutineMock(
-            return_value={"tails_public_uri": f"http://sample.ca:8181/tails/{REV_REG_ID}"}
+            return_value={
+                "tails_public_uri": f"http://sample.ca:8181/tails/{REV_REG_ID}"
+            }
         )
 
         with mock.patch.object(
@@ -978,7 +990,9 @@ class TestRevocationRoutes(IsolatedAsyncioTestCase):
         )
         self.request.match_info = {"rev_reg_id": REV_REG_ID}
         self.request.json = mock.CoroutineMock(
-            return_value={"tails_public_uri": f"http://sample.ca:8181/tails/{REV_REG_ID}"}
+            return_value={
+                "tails_public_uri": f"http://sample.ca:8181/tails/{REV_REG_ID}"
+            }
         )
 
         with mock.patch.object(
@@ -1002,7 +1016,9 @@ class TestRevocationRoutes(IsolatedAsyncioTestCase):
         )
         self.request.match_info = {"rev_reg_id": REV_REG_ID}
         self.request.json = mock.CoroutineMock(
-            return_value={"tails_public_uri": f"http://sample.ca:8181/tails/{REV_REG_ID}"}
+            return_value={
+                "tails_public_uri": f"http://sample.ca:8181/tails/{REV_REG_ID}"
+            }
         )
 
         with mock.patch.object(

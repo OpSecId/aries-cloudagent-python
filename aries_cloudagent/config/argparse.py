@@ -58,7 +58,9 @@ class group:
     def get_registered(cls, category: str = None):
         """Fetch the set of registered classes in a category."""
         return (
-            grp for (cats, grp) in cls._registered if category is None or category in cats
+            grp
+            for (cats, grp) in cls._registered
+            if category is None or category in cats
         )
 
 
@@ -554,7 +556,9 @@ class DiscoverFeaturesGroup(ArgumentGroup):
                 if "protocols" in provided_lists:
                     settings["disclose_protocol_list"] = provided_lists.get("protocols")
                 if "goal-codes" in provided_lists:
-                    settings["disclose_goal_code_list"] = provided_lists.get("goal-codes")
+                    settings["disclose_goal_code_list"] = provided_lists.get(
+                        "goal-codes"
+                    )
         return settings
 
 
@@ -1466,7 +1470,9 @@ class TransportGroup(ArgumentGroup):
                 settings["transport.outbound_configs"] = args.outbound_transports
             else:
                 raise ArgsParseError("-ot/--outbound-transport is required")
-            settings["transport.enable_undelivered_queue"] = args.enable_undelivered_queue
+            settings["transport.enable_undelivered_queue"] = (
+                args.enable_undelivered_queue
+            )
             if args.max_message_size:
                 settings["transport.max_message_size"] = args.max_message_size
             if args.max_outbound_retry:
@@ -1573,7 +1579,9 @@ class MediationGroup(ArgumentGroup):
             settings["mediation.clear"] = True
 
         if args.clear_default_mediator and args.default_mediator_id:
-            raise ArgsParseError("Cannot both set and clear mediation at the same time.")
+            raise ArgsParseError(
+                "Cannot both set and clear mediation at the same time."
+            )
 
         return settings
 

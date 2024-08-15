@@ -61,7 +61,9 @@ class TestV20CredOffer(IsolatedAsyncioTestCase):
 
     async def test_init_type(self):
         """Test initializer and type."""
-        assert TestV20CredOffer.CRED_OFFER.credential_preview == TestV20CredOffer.preview
+        assert (
+            TestV20CredOffer.CRED_OFFER.credential_preview == TestV20CredOffer.preview
+        )
         assert (
             TestV20CredOffer.CRED_OFFER.offers_attach[0].content
             == TestV20CredOffer.indy_offer

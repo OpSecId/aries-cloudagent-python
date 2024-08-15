@@ -41,27 +41,29 @@ class VerifierService:
                 ).from_verification_method(vc.proof.verification_method)
             )
         except:
-            raise VerifierServiceError('Invalid cryptosuite')
+            raise VerifierServiceError("Invalid cryptosuite")
         verification = suite.verify_proof(vc.serialize())
         return verification
-    
+
     async def _validate_proof(self, proof, options):
 
-        if options.expected_proof_purpose \
-            and options.expected_proof_purpose != proof.proof_purpose:
+        if (
+            options.expected_proof_purpose
+            and options.expected_proof_purpose != proof.proof_purpose
+        ):
             raise VerifierServiceError("Unexpected proof purpose")
 
-        if (options.domain and proof.domain) \
-            and options.domain != proof.domain:
+        if (options.domain and proof.domain) and options.domain != proof.domain:
             raise VerifierServiceError("Domain mismatch")
 
-        if (options.challenge and proof.challenge) \
-            and options.challenge != proof.challenge:
+        if (
+            options.challenge and proof.challenge
+        ) and options.challenge != proof.challenge:
             raise VerifierServiceError("Challenge mismatch")
-        
+
         if proof.proof_value:
             pass
-    
+
     async def _get_crypto_suite(self, proof):
 
         if proof.type == "DataIntegrityProof":
@@ -76,7 +78,7 @@ class VerifierService:
                 document_loader=DocumentLoader(self.profile),
             )
         except:
-            raise VerifierServiceError('Invalid cryptosuite')
+            raise VerifierServiceError("Invalid cryptosuite")
 
     async def verify_credential(
         self, vc: VerifiableCredentialBase, options: VerificationOptions
@@ -84,8 +86,8 @@ class VerifierService:
         """Verify a Verifiable Credential."""
 
         credential = vc.serialize().copy()
-        proof = credential.pop('proof', None)
-        
+        proof = credential.pop("proof", None)
+
         verification_result = {
             "verified": False,
             "verifiedDocument": credential,
@@ -98,7 +100,7 @@ class VerifierService:
         #     raise DataIntegrityProofException(
         #         f"Unable to verify credential with invalid structure: {validation_errors}"
         #     )
-        
+
         if not vc.issuer_id:
             raise VerifierServiceError("VC issuer id is required")
 
@@ -107,15 +109,15 @@ class VerifierService:
 
         if not vc.proof.verification_method:
             raise VerifierServiceError("Verification method subject is required")
-        
+
         await self._validate_proof(vc.proof, options)
-        
+
         # if 'EnvelopedVerifiableCredential' in vc.type:
         #     credential_b64 = vc.id.split(';')[-1]
         #     credential = base64.urlsafe_b64decode(credential_b64.encode()).decode()
-        
+
         suite = await self._get_crypto_suite(vc.proof)
-        
+
         proof_verification = await suite.verify_proof(credential, proof)
 
         verification_result["verified"] = proof_verification["verified"]
@@ -140,8 +142,8 @@ class VerifierService:
         """Verify a Verifiable Credential."""
 
         presentation = vp.serialize().copy()
-        proof = presentation.pop('proof', None)
-        
+        proof = presentation.pop("proof", None)
+
         verification_result = {
             "verified": False,
             "verifiedDocument": presentation,
@@ -156,7 +158,11 @@ class VerifierService:
         #     )
 
         if vp.verifiable_credential:
-            credentials = [vp.verifiable_credential] if isinstance(vp.verifiable_credential, dict) else vp.verifiable_credential
+            credentials = (
+                [vp.verifiable_credential]
+                if isinstance(vp.verifiable_credential, dict)
+                else vp.verifiable_credential
+            )
             for credential in credentials:
                 try:
                     CredentialBase.deserialize(credential)
@@ -165,11 +171,11 @@ class VerifierService:
 
         if not vp.proof.verification_method:
             raise VerifierServiceError("Verification method subject is required")
-        
+
         await self._validate_proof(vp.proof, options)
-        
+
         suite = self._get_crypto_suite(vp.proof)
-        
+
         proof_verification = await suite.verify_proof(presentation, proof)
 
         verification_result["verified"] = proof_verification["verified"]

@@ -95,7 +95,9 @@ PRES_REQ = [
         formats=[
             V20PresFormat(
                 attach_id="indy",
-                format_=ATTACHMENT_FORMAT[PRES_20_REQUEST][V20PresFormat.Format.INDY.api],
+                format_=ATTACHMENT_FORMAT[PRES_20_REQUEST][
+                    V20PresFormat.Format.INDY.api
+                ],
             )
         ],
         request_presentations_attach=[
@@ -139,9 +141,9 @@ class TestV20PresRequest(TestCase):
             pres_req_obj = V20PresRequest.deserialize(pres_req_dict)
             assert type(pres_req_obj) is V20PresRequest
 
-            pres_req_dict["request_presentations~attach"][0]["data"]["base64"] = (
-                "eyJub3QiOiAiaW5keSJ9"
-            )
+            pres_req_dict["request_presentations~attach"][0]["data"][
+                "base64"
+            ] = "eyJub3QiOiAiaW5keSJ9"
             with self.assertRaises(BaseModelError):
                 V20PresRequest.deserialize(pres_req_dict)
 

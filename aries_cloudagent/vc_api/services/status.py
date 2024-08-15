@@ -7,10 +7,13 @@ from typing import Dict, List, Optional, Type, Union, cast
 from pyld.jsonld import JsonLdProcessor
 
 from ...core.profile import Profile
+from ..resources.problem_details import PROBLEM_DETAILS
+from .verifier import VerifierService
 from bitstring import BitArray
 import gzip
 import base64
 import random
+import requests
 
 
 class StatusServiceError(Exception):
@@ -81,3 +84,65 @@ class StatusService:
         }
 
         return entry
+
+    async def validate(
+        self, credential_to_validate, minimum_number_of_entries: int = 131072
+    ):
+        # https://www.w3.org/TR/vc-bitstring-status-list/#validate-algorithm
+        status_entries = (
+            credential_to_validate["credentialStatus"]
+            if isinstance(credential_to_validate["credentialStatus"], list)
+            else [credential_to_validate["credentialStatus"]]
+        )
+        results = []
+        for status_entry in status_entries:
+            problem_details = []
+            status_purpose = status_entry["statusPurpose"]
+            status_list_credential_url = status_entry["statusListCredential"]
+            r = requests.get(status_list_credential_url)
+            if r.status_code != 200:
+                problem_details.append(PROBLEM_DETAILS["STATUS_RETRIEVAL_ERROR"])
+            status_vc = r.json()
+            status_credential = status_vc.copy()
+            proof = status_credential.pop(proof)
+            proofs = proof if isinstance(proof, list) else [proof]
+            for proof in proofs:
+                verification_response = VerifierService(self.profile)._verify_di_proof(
+                    status_credential, proof
+                )
+                if not verification_response["verified"]:
+                    problem_details.append(PROBLEM_DETAILS["STATUS_VERIFICATION_ERROR"])
+            status_vc_purposes = (
+                status_vc["credentialStatus"]["statusPurpose"]
+                if isinstance(status_vc["credentialStatus"]["statusPurpose"], list)
+                else [status_vc["credentialStatus"]["statusPurpose"]]
+            )
+            if status_purpose not in status_vc_purposes:
+                problem_details.append(PROBLEM_DETAILS["STATUS_VERIFICATION_ERROR"])
+            compressed_bitstring = status_vc["credentialStatus"]["encodedList"]
+            credential_index = status_entry["statusListIndex"]
+            status_bitstring = self._expand(compressed_bitstring)
+            status_size = (
+                status_entry["statusSize"] if "statusSize" in status_entry else 1
+            )
+            if len(status_bitstring) / status_size > minimum_number_of_entries:
+                problem_details.append(PROBLEM_DETAILS["STATUS_LIST_LENGTH_ERROR"])
+            try:
+                status = status_bitstring[credential_index * status_size]
+            except IndexError:
+                problem_details.append(PROBLEM_DETAILS["RANGE_ERROR"])
+            result = {}
+            result["status"] = status
+            result["purpose"] = status_purpose
+            result["valid"] = True if result["status"] == 0 else False
+            if status_purpose == "message":
+                result["message"] = next(
+                    (
+                        message["value"]
+                        for message in status_entry["statusMessages"]
+                        if message["status"] == result["status"]
+                    ),
+                    None,
+                )
+            results.append(result)
+        return results

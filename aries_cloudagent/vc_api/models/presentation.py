@@ -1,4 +1,3 @@
-
 from typing import List, Optional, Union
 from marshmallow import INCLUDE, ValidationError, fields, post_dump
 from ...messaging.models.base import BaseModel, BaseModelSchema
@@ -49,7 +48,6 @@ from ...messaging.valid import (
 from .proof import DIProof, DataIntegrityProofSchema
 
 
-
 class PresentationBase(BaseModel):
     """Credential base model."""
 
@@ -77,7 +75,6 @@ class PresentationBase(BaseModel):
         self._proof = proof
 
         self.extra = kwargs
-        
 
     @property
     def context(self):
@@ -121,7 +118,6 @@ class PresentationBase(BaseModel):
     def add_type(self, type: str):
         """Add a type to this credential."""
         self._type.append(type)
-        
 
     @property
     def id(self):

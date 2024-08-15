@@ -440,13 +440,9 @@ class CredentialBaseSchema(BaseModelSchema):
         },
     )
 
-    name = StrOrDictOrListDictField(
-        required=False
-    )
+    name = StrOrDictOrListDictField(required=False)
 
-    description = StrOrDictOrListDictField(
-        required=False
-    )
+    description = StrOrDictOrListDictField(required=False)
 
     valid_from = fields.Str(
         required=False,

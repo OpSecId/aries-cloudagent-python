@@ -309,7 +309,9 @@ class TransactionManager:
                 )
                 # we don't have an endorsed transaction so just return did meta-data
                 ledger_response = {
-                    "result": {"txn": {"type": "1", "data": {"dest": meta_data["did"]}}},
+                    "result": {
+                        "txn": {"type": "1", "data": {"dest": meta_data["did"]}}
+                    },
                     "meta_data": meta_data,
                 }
                 endorsed_msg = json.dumps(ledger_response)
@@ -427,7 +429,9 @@ class TransactionManager:
 
         # if we are the author, we need to write the endorsed ledger transaction ...
         # ... EXCEPT for DID transactions, which the endorser will write
-        if (not endorser) and (txn_goal_code != TransactionRecord.WRITE_DID_TRANSACTION):
+        if (not endorser) and (
+            txn_goal_code != TransactionRecord.WRITE_DID_TRANSACTION
+        ):
             ledger = self.profile.inject(BaseLedger)
             if not ledger:
                 raise TransactionManagerError("No ledger available")
@@ -885,7 +889,9 @@ class TransactionManager:
         elif ledger_response["result"]["txn"]["type"] == "114":
             # revocation entry transaction
             rev_reg_id = ledger_response["result"]["txn"]["data"]["revocRegDefId"]
-            revoked = ledger_response["result"]["txn"]["data"]["value"].get("revoked", [])
+            revoked = ledger_response["result"]["txn"]["data"]["value"].get(
+                "revoked", []
+            )
             meta_data["context"]["rev_reg_id"] = rev_reg_id
             if is_anoncreds:
                 await AnonCredsRevocation(self._profile).finish_revocation_list(

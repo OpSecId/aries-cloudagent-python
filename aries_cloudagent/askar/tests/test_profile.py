@@ -52,7 +52,8 @@ async def test_init_multi_ledger(open_store):
     assert askar_profile.opened == open_store
     assert askar_profile.settings["endorser.endorser_alias"] == "endorser_dev"
     assert (
-        askar_profile.settings["endorser.endorser_public_did"] == "9QPa6tHvBHttLg6U4xvviv"
+        askar_profile.settings["endorser.endorser_public_did"]
+        == "9QPa6tHvBHttLg6U4xvviv"
     )
     assert (askar_profile.inject_or(BaseLedger)).pool_name == "BCovrinDev"
 
