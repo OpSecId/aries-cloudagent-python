@@ -32,42 +32,12 @@ class DidKeyManager:
         async with self.profile.session() as session:
             wallet = session.inject(BaseWallet)
         info = await wallet.create_local_did(method=KEY, key_type=key_type)
-        return await self.create_did_doc(info.did)
-
-    async def create_did_doc(
-        self,
-        did: str,
-    ):
-        """Creates a DID doc based on a did:key value.
-
-        Args:
-            did: The did:key value
-
-        Returns:
-            A `DIDDocument` instance representing the created DID
-
-        Raises:
-            DidOperationError: If the an error occures during did document creation
-
-        """
-        verification_method = f"{did}#" + did.split(":")[-1]
+        did = info.did
+        multikey = did.split(":")[-1]
+        verification_method = f"{did}#{multikey}"
         return {
-            "@context": [
-                "https://www.w3.org/ns/did/v1",
-                "https://w3id.org/security/multikey/v1",
-            ],
-            "id": did,
-            "verificationMethod": [
-                {
-                    "id": verification_method,
-                    "type": "MultiKey",
-                    "controller": did,
-                    "publicKeyMultibase": did.split(":")[-1],
-                },
-            ],
-            "authentication": [verification_method],
-            "assertionMethod": [verification_method],
-            "capabilityDelegation": [verification_method],
-            "capabilityInvocation": [verification_method],
-            "keyAgreement": [],
+            "id": verification_method,
+            "type": "MultiKey",
+            "controller": did,
+            "publicKeyMultibase": multikey,
         }

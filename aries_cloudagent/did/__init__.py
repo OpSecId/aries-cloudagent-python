@@ -1,4 +1,5 @@
 from .key.manager import DidKeyManager
+from .web.manager import DidWebManager
 
 
 class DidOperationError(Exception):
@@ -7,5 +8,6 @@ class DidOperationError(Exception):
 
 __all__ = [
     "DidKeyManager",
+    "DidWebManager",
     "DidOperationError",
 ]
