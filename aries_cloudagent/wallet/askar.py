@@ -94,10 +94,7 @@ class AskarWallet(BaseWallet):
         if metadata is None:
             metadata = {}
 
-        if kid:
-            tags = {"kid": kid}
-        else:
-            tags = {}
+        tags = {"kid": kid}
 
         try:
             keypair = _create_keypair(key_type, seed)
@@ -263,9 +260,7 @@ class AskarWallet(BaseWallet):
             )
 
             try:
-                await self._session.handle.insert_key(
-                    verkey, keypair, metadata=json.dumps(metadata)
-                )
+                await self.create_key(key_type, seed, metadata=json.dumps(metadata))
             except AskarError as err:
                 if err.code == AskarErrorCode.DUPLICATE:
                     # update metadata?
