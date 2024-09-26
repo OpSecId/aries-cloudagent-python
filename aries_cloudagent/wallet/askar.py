@@ -99,21 +99,21 @@ class AskarWallet(BaseWallet):
         else:
             tags = {}
 
-        # try:
-        keypair = _create_keypair(key_type, seed)
-        verkey = bytes_to_b58(keypair.get_public_bytes())
-        await self._session.handle.insert_key(
-            verkey,
-            keypair,
-            metadata=json.dumps(metadata),
-            tags=tags,
-        )
-        # except AskarError as err:
-        #     if err.code == AskarErrorCode.DUPLICATE:
-        #         raise WalletDuplicateError(
-        #             "Verification key already present in wallet"
-        #         ) from None
-        #     raise WalletError("Error creating signing key") from err
+        try:
+            keypair = _create_keypair(key_type, seed)
+            verkey = bytes_to_b58(keypair.get_public_bytes())
+            await self._session.handle.insert_key(
+                verkey,
+                keypair,
+                metadata=json.dumps(metadata),
+                tags=tags,
+            )
+        except AskarError as err:
+            if err.code == AskarErrorCode.DUPLICATE:
+                raise WalletDuplicateError(
+                    "Verification key already present in wallet"
+                ) from None
+            raise WalletError("Error creating signing key") from err
         return KeyInfo(verkey=verkey, metadata=metadata, key_type=key_type, kid=kid)
 
     async def assign_kid_to_key(self, verkey: str, kid: str) -> KeyInfo:
@@ -193,7 +193,10 @@ class AskarWallet(BaseWallet):
             raise WalletNotFoundError("Unknown key: {}".format(verkey))
         metadata = json.loads(key.metadata or "{}")
 
-        kid = key.tags.get("kid")
+        try:
+            kid = key.tags.get("kid")
+        except:
+            kid = None
 
         # FIXME implement key types
         return KeyInfo(verkey=verkey, metadata=metadata, key_type=ED25519, kid=kid)
