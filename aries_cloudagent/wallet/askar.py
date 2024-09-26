@@ -249,6 +249,7 @@ class AskarWallet(BaseWallet):
 
         if not metadata:
             metadata = {}
+        print(key_type)
 
         try:
             keypair = _create_keypair(key_type, seed)
@@ -260,7 +261,7 @@ class AskarWallet(BaseWallet):
             )
 
             try:
-                await self.create_key(key_type, seed, metadata)
+                await self.create_key(key_type=key_type, seed=seed, metadata=metadata)
             except AskarError as err:
                 if err.code == AskarErrorCode.DUPLICATE:
                     # update metadata?
