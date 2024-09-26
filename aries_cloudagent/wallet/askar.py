@@ -260,7 +260,7 @@ class AskarWallet(BaseWallet):
             )
 
             try:
-                await self.create_key(key_type, seed, metadata=json.dumps(metadata))
+                await self.create_key(key_type, seed, metadata)
             except AskarError as err:
                 if err.code == AskarErrorCode.DUPLICATE:
                     # update metadata?
