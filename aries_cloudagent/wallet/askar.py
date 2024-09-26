@@ -94,7 +94,10 @@ class AskarWallet(BaseWallet):
         if metadata is None:
             metadata = {}
 
-        tags = {"kid": kid}
+        if kid:
+            tags = {"kid": kid}
+        else:
+            tags = {}
 
         # try:
         keypair = _create_keypair(key_type, seed)
