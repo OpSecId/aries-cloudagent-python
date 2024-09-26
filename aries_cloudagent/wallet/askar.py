@@ -97,7 +97,7 @@ class AskarWallet(BaseWallet):
         if kid:
             tags = {"kid": kid}
         else:
-            tags = {}
+            tags = None
 
         try:
             keypair = _create_keypair(key_type, seed)
@@ -106,7 +106,7 @@ class AskarWallet(BaseWallet):
                 verkey,
                 keypair,
                 metadata=json.dumps(metadata),
-                tags=json.dumps(tags),
+                tags=tags,
             )
         except AskarError as err:
             if err.code == AskarErrorCode.DUPLICATE:
@@ -193,7 +193,7 @@ class AskarWallet(BaseWallet):
             raise WalletNotFoundError("Unknown key: {}".format(verkey))
         metadata = json.loads(key.metadata or "{}")
 
-        kid = key.tags.get("kid") #if key.tags else None
+        kid = key.tags.get("kid") if key.tags else None
 
         # FIXME implement key types
         return KeyInfo(verkey=verkey, metadata=metadata, key_type=ED25519, kid=kid)
