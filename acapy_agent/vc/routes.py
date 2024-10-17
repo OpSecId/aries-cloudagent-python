@@ -60,78 +60,6 @@ async def fetch_credential_route(request: web.BaseRequest):
         return web.json_response({"message": err.roll_up}, status=400)
 
 
-@docs(tags=["vc-api"], summary="Issue a credential")
-@request_schema(web_schemas.IssueCredentialRequest())
-@response_schema(web_schemas.IssueCredentialResponse(), 200, description="")
-@tenant_authentication
-async def issue_credential_route(request: web.BaseRequest):
-    """Request handler for issuing a credential.
-
-    Args:
-        request: aiohttp request object
-
-    """
-    body = await request.json()
-    context: AdminRequestContext = request["context"]
-    manager = VcLdpManager(context.profile)
-    try:
-        credential = body["credential"]
-        options = {} if "options" not in body else body["options"]
-
-        # We derive the proofType from the issuer DID if not provided in options
-        if not options.get("proofType", None):
-            issuer = credential["issuer"]
-            did = issuer if isinstance(issuer, str) else issuer["id"]
-            async with context.session() as session:
-                wallet: BaseWallet | None = session.inject_or(BaseWallet)
-                info = await wallet.get_local_did(did)
-                key_type = info.key_type.key_type
-
-            if key_type == "ed25519":
-                options["proofType"] = "Ed25519Signature2020"
-            elif key_type == "bls12381g2":
-                options["proofType"] = "BbsBlsSignature2020"
-
-        credential = VerifiableCredential.deserialize(credential)
-        options = LDProofVCOptions.deserialize(options)
-
-        vc = await manager.issue(credential, options)
-        response = {"verifiableCredential": vc.serialize()}
-        return web.json_response(response, status=201)
-    except (ValidationError, VcLdpManagerError, WalletError, InjectionError) as err:
-        return web.json_response({"message": str(err)}, status=400)
-
-
-@docs(tags=["vc-api"], summary="Verify a credential")
-@request_schema(web_schemas.VerifyCredentialRequest())
-@response_schema(web_schemas.VerifyCredentialResponse(), 200, description="")
-@tenant_authentication
-async def verify_credential_route(request: web.BaseRequest):
-    """Request handler for verifying a credential.
-
-    Args:
-        request: aiohttp request object
-
-    """
-    body = await request.json()
-    context: AdminRequestContext = request["context"]
-    manager = VcLdpManager(context.profile)
-    try:
-        vc = VerifiableCredential.deserialize(body["verifiableCredential"])
-        result = await manager.verify_credential(vc)
-        result = result.serialize()
-        return web.json_response(result)
-    except (
-        ValidationError,
-        VcLdpManagerError,
-        ResolverError,
-        ValueError,
-        WalletError,
-        InjectionError,
-    ) as err:
-        return web.json_response({"message": str(err)}, status=400)
-
-
 @docs(tags=["vc-api"], summary="Store a credential")
 async def store_credential_route(request: web.BaseRequest):
     """Request handler for storing a credential.
@@ -250,9 +178,7 @@ async def register(app: web.Application):
                 fetch_credential_route,
                 allow_head=False,
             ),
-            web.post("/vc/credentials/issue", issue_credential_route),
             web.post("/vc/credentials/store", store_credential_route),
-            web.post("/vc/credentials/verify", verify_credential_route),
             web.post("/vc/presentations/prove", prove_presentation_route),
             web.post("/vc/presentations/verify", verify_presentation_route),
         ]

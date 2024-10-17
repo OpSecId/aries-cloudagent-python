@@ -138,10 +138,14 @@ class DefaultContextBuilder(ContextBuilder):
         plugin_registry.register_plugin("acapy_agent.messaging.jsonld")
         plugin_registry.register_plugin("acapy_agent.resolver")
         plugin_registry.register_plugin("acapy_agent.settings")
-        plugin_registry.register_plugin("acapy_agent.vc")
-        plugin_registry.register_plugin("acapy_agent.vc.data_integrity")
         plugin_registry.register_plugin("acapy_agent.wallet")
         plugin_registry.register_plugin("acapy_agent.wallet.keys")
+
+        vc_plugins = [
+            "acapy_agent.vc",
+            "acapy_agent.vc.api",
+            "acapy_agent.vc.data_integrity",
+        ]
 
         anoncreds_plugins = [
             "acapy_agent.anoncreds",
@@ -156,6 +160,10 @@ class DefaultContextBuilder(ContextBuilder):
             "acapy_agent.messaging.schemas",
             "acapy_agent.revocation",
         ]
+
+        def register_vc_plugins():
+            for plugin in vc_plugins:
+                plugin_registry.register_plugin(plugin)
 
         def register_askar_plugins():
             for plugin in askar_plugins:
