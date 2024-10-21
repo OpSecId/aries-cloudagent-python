@@ -127,6 +127,15 @@ async def issue_credential_route(request: web.BaseRequest):
             except Exception as err:
                 raise web.HTTPBadRequest(reason=err.errors()[0])
             options['proofPurpose'] = 'assertionMethod'
+            issuer = credential.get('issuer')
+            if isinstance(issuer, dict):
+                issuer = issuer.get('id')
+            if not options.get('verificationMethod'):
+                if 'key' in issuer:
+                    multikey = issuer.split(':')[-1]
+                    options['verificaitonMethod'] = f'{issuer}#{multikey}'
+                else:
+                    raise web.HTTPBadRequest(reason='Missing VerificationMethod')
             options = DataIntegrityProofOptions.deserialize(options)
             async with context.session() as session:
                 vc = await DataIntegrityManager(session).add_proof(credential, options)
