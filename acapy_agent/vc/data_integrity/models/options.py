@@ -39,10 +39,10 @@ class DataIntegrityProofOptions(BaseModel):
         """Initialize the DataIntegrityProofOptions instance."""
 
         self.id = id
-        self.type = type
-        self.proof_purpose = proof_purpose
+        self.type = type or 'DataIntegrityProof'
+        self.proof_purpose = proof_purpose or 'assertionMethod'
         self.verification_method = verification_method
-        self.cryptosuite = cryptosuite
+        self.cryptosuite = cryptosuite or 'eddsa-jcs-2022'
         self.created = created
         self.expires = expires
         self.domain = domain
@@ -78,7 +78,7 @@ class DataIntegrityProofOptionsSchema(BaseModelSchema):
     )
 
     type = fields.Str(
-        required=True,
+        required=False,
         metadata={
             "description": (
                 "The specific type of proof MUST be specified as a string that maps \
@@ -90,7 +90,7 @@ class DataIntegrityProofOptionsSchema(BaseModelSchema):
 
     proof_purpose = fields.Str(
         data_key="proofPurpose",
-        required=True,
+        required=False,
         metadata={
             "description": "The proof purpose acts as a safeguard to prevent the \
                 proof from being misused by being applied to a purpose other than \
@@ -114,7 +114,7 @@ class DataIntegrityProofOptionsSchema(BaseModelSchema):
     )
 
     cryptosuite = fields.Str(
-        required=True,
+        required=False,
         metadata={
             "description": (
                 "An identifier for the cryptographic suite that can be used to \

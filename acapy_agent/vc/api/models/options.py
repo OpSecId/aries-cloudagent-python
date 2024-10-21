@@ -29,8 +29,8 @@ class IssueCredentialOptions(BaseModel):
     ) -> None:
         """Initialize the IssueCredentialOptions instance."""
 
-        self.type = type
-        self.cryptosuite = cryptosuite
+        self.type = type or 'DataIntegrityProof'
+        self.cryptosuite = cryptosuite or 'eddsa-jcs-2022'
         self.verification_method = verification_method
         self.credential_id = credential_id
         self.extra = kwargs
@@ -78,6 +78,7 @@ class IssueCredentialOptionsSchema(BaseModelSchema):
     credential_id = fields.Str(
         data_key="credentialId",
         required=False,
+        validate=Uri(),
         metadata={
             "description": "",
             "example": UUID4_EXAMPLE,
