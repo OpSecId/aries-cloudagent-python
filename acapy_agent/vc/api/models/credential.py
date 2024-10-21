@@ -14,6 +14,7 @@ from ....messaging.valid import (
 )
 from ...ld_proofs.constants import (
     CREDENTIALS_CONTEXT_V1_URL,
+    CREDENTIALS_CONTEXT_V2_URL,
     VERIFIABLE_CREDENTIAL_TYPE,
 )
 
@@ -48,7 +49,7 @@ class CredentialContext(BaseModel):
 
         First item must be credentials v1 url
         """
-        assert context[0] in [CREDENTIALS_CONTEXT_V1_URL]
+        assert context[0] in [CREDENTIALS_CONTEXT_V1_URL, CREDENTIALS_CONTEXT_V2_URL]
 
         self._context = context
 
@@ -96,7 +97,6 @@ class CredentialContextSchema(BaseModelSchema):
         UriOrDictField(required=True),
         data_key="@context",
         required=True,
-        validate=CREDENTIAL_CONTEXT_VALIDATE,
         metadata={
             "description": "The JSON-LD context of the credential",
             "example": CREDENTIAL_CONTEXT_EXAMPLE,
@@ -106,7 +106,6 @@ class CredentialContextSchema(BaseModelSchema):
     type = fields.List(
         fields.Str(required=True),
         required=True,
-        validate=CREDENTIAL_TYPE_VALIDATE,
         metadata={
             "description": "The JSON-LD type of the credential",
             "example": CREDENTIAL_TYPE_EXAMPLE,

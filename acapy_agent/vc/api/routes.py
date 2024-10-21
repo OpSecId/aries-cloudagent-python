@@ -31,6 +31,7 @@ from ..vc_ld.models.credential import VerifiableCredential
 from ..vc_ld.models.options import LDProofVCOptions
 from ..vc_ld.manager import VcLdpManager, VcLdpManagerError
 
+from ..data_integrity.models.options import DataIntegrityProofOptions
 from ..data_integrity.manager import DataIntegrityManager, DataIntegrityManagerError
 
 LOGGER = logging.getLogger(__name__)
@@ -121,8 +122,12 @@ async def issue_credential_route(request: web.BaseRequest):
 
         # New Data Integrity code
         elif credential["@context"][0] == CREDENTIALS_CONTEXT_V2_URL:
-            CredentialV2.model_validate(credential)
-            options = IssueCredentialOptions.deserialize(options)
+            try:
+                CredentialV2.model_validate(credential)
+            except Exception as err:
+                raise web.HTTPBadRequest(reason=err.errors()[0])
+            options['proofPurpose'] = 'assertionMethod'
+            options = DataIntegrityProofOptions.deserialize(options)
             async with context.session() as session:
                 vc = await DataIntegrityManager(session).add_proof(credential, options)
 
