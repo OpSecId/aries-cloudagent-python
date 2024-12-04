@@ -2,7 +2,7 @@
 
 from typing import Optional
 
-from marshmallow import INCLUDE, Schema, fields
+from marshmallow import INCLUDE, Schema, fields, post_dump
 
 from acapy_agent.messaging.valid import (
     ISO8601_DATETIME_EXAMPLE,
@@ -30,6 +30,7 @@ class LDProofVCOptions(BaseModel):
         domain: Optional[str] = None,
         challenge: Optional[str] = None,
         credential_status: Optional[dict] = None,
+        **kwargs,
     ) -> None:
         """Initialize the LDProofVCDetailOptions instance."""
 
@@ -40,6 +41,7 @@ class LDProofVCOptions(BaseModel):
         self.domain = domain
         self.challenge = challenge
         self.credential_status = credential_status
+        self.extra = kwargs
 
     def __eq__(self, o: object) -> bool:
         """Check equality."""
@@ -51,6 +53,7 @@ class LDProofVCOptions(BaseModel):
                 and self.domain == o.domain
                 and self.challenge == o.challenge
                 and self.credential_status == o.credential_status
+                and self.extra == o.extra
             )
 
         return False
@@ -165,3 +168,11 @@ class LDProofVCOptionsSchema(BaseModelSchema):
             )
         },
     )
+
+    @post_dump(pass_original=True)
+    def add_unknown_properties(self, data: dict, original, **kwargs):
+        """Add back unknown properties before outputting."""
+
+        data.update(original.extra)
+
+        return data

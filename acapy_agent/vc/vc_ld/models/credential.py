@@ -4,7 +4,7 @@ from datetime import datetime
 from typing import List, Optional, Union
 
 from dateutil import tz
-from marshmallow import INCLUDE, ValidationError, fields, post_dump
+from marshmallow import INCLUDE, ValidationError, fields, post_dump, validates_schema
 
 from ....messaging.models.base import BaseModel, BaseModelSchema
 from ....messaging.valid import (
@@ -26,6 +26,7 @@ from ....messaging.valid import (
 )
 from ...ld_proofs.constants import (
     CREDENTIALS_CONTEXT_V1_URL,
+    CREDENTIALS_CONTEXT_V2_URL,
     VERIFIABLE_CREDENTIAL_TYPE,
 )
 from .linked_data_proof import LDProof, LinkedDataProofSchema
@@ -79,7 +80,10 @@ class VerifiableCredential(BaseModel):
 
         First item must be credentials v1 url
         """
-        assert context[0] == CREDENTIALS_CONTEXT_V1_URL
+        assert context[0] in [
+            CREDENTIALS_CONTEXT_V1_URL, 
+            CREDENTIALS_CONTEXT_V2_URL
+        ]
 
         self._context = context
 
@@ -325,7 +329,8 @@ class CredentialSchema(BaseModelSchema):
 
     issuance_date = fields.Str(
         data_key="issuanceDate",
-        required=True,
+        # Only required for vcdm 1.1
+        required=False,
         validate=RFC3339_DATETIME_VALIDATE,
         metadata={
             "description": "The issuance date",
@@ -377,6 +382,13 @@ class CredentialSchema(BaseModelSchema):
             },
         },
     )
+    
+    @validates_schema
+    def validate_issuance_date(self, data, **kwargs):
+        """Make issuanceDate required for vcdm 1.1."""
+        if data.get('@context')[0] == CREDENTIALS_CONTEXT_V1_URL:
+            if not data.get('issuanceDate'):
+                raise ValidationError("issuanceDate is required for vcdm 1.1.")
 
     @post_dump(pass_original=True)
     def add_unknown_properties(self, data: dict, original, **kwargs):
