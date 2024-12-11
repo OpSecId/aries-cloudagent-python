@@ -176,7 +176,10 @@ class AskarVCRecordSearch(VCRecordSearch):
         records = [storage_to_vc_record(r) for r in rows]
         try:
             records.sort(
-                key=lambda v: dateutil_parser(v.cred_value.get("issuanceDate")),
+                key=lambda v: dateutil_parser(
+                    v.cred_value.get("issuanceDate") 
+                    or v.cred_value.get("validFrom")
+                ),
                 reverse=True,
             )
             return records

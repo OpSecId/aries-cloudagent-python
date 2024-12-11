@@ -30,6 +30,7 @@ from ...ld_proofs.constants import (
     VERIFIABLE_CREDENTIAL_TYPE,
 )
 from .linked_data_proof import LDProof, LinkedDataProofSchema
+# from vcdm.models import Credential as CredentialV2
 
 
 class VerifiableCredential(BaseModel):
@@ -50,7 +51,7 @@ class VerifiableCredential(BaseModel):
         expiration_date: Optional[str] = None,
         credential_subject: Optional[Union[dict, List[dict]]] = None,
         credential_status: Optional[Union[dict, List[dict]]] = None,
-        proof: Optional[Union[dict, LDProof]] = None,
+        proof: Optional[Union[List[dict], dict, LDProof]] = None,
         **kwargs,
     ) -> None:
         """Initialize the VerifiableCredential instance."""
@@ -250,7 +251,7 @@ class VerifiableCredential(BaseModel):
         return self._proof
 
     @proof.setter
-    def proof(self, proof: LDProof):
+    def proof(self, proof: Union[List[LDProof], LDProof]):
         """Setter for proof."""
         self._proof = proof
 
@@ -362,9 +363,11 @@ class CredentialSchema(BaseModelSchema):
         metadata={"example": CREDENTIAL_STATUS_EXAMPLE},
     )
 
-    proof = fields.Nested(
-        LinkedDataProofSchema(),
+    # proof = fields.Nested(
+    proof = DictOrDictListField(
+        # LinkedDataProofSchema(),
         required=False,
+        # validate=CREDENTIAL_PROOF_VALIDATE,
         metadata={
             "description": "The proof of the credential",
             "example": {
@@ -383,12 +386,18 @@ class CredentialSchema(BaseModelSchema):
         },
     )
     
-    @validates_schema
-    def validate_issuance_date(self, data, **kwargs):
-        """Make issuanceDate required for vcdm 1.1."""
-        if data.get('@context')[0] == CREDENTIALS_CONTEXT_V1_URL:
-            if not data.get('issuanceDate'):
-                raise ValidationError("issuanceDate is required for vcdm 1.1.")
+    # @validates_schema
+    # def validate_issuance_date(self, data, **kwargs):
+    #     """Make issuanceDate required for vcdm 1.1."""
+    #     if data.context[0] == CREDENTIALS_CONTEXT_V1_URL:
+    #         if not data.get('issuanceDate'):
+    #             raise ValidationError("issuanceDate is required for vcdm 1.1.")
+    
+    # @validates_schema
+    # def validate_vcdm_v2(self, data, **kwargs):
+    #     """Validate VCDM 2.0."""
+    #     if data.get('@context')[0] == CREDENTIALS_CONTEXT_V2_URL:
+    #         CredentialV2.model_validate(data)
 
     @post_dump(pass_original=True)
     def add_unknown_properties(self, data: dict, original, **kwargs):
@@ -406,9 +415,11 @@ class VerifiableCredentialSchema(CredentialSchema):
 
     """
 
-    proof = fields.Nested(
-        LinkedDataProofSchema(),
+    # proof = fields.Nested(
+    proof = DictOrDictListField(
+        # LinkedDataProofSchema(),
         required=True,
+        # validate=CREDENTIAL_PROOF_VALIDATE,
         metadata={
             "description": "The proof of the credential",
             "example": {

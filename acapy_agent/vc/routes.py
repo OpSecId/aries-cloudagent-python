@@ -133,6 +133,7 @@ async def verify_credential_route(request: web.BaseRequest):
 
 
 @docs(tags=["vc-api"], summary="Store a credential")
+@tenant_authentication
 async def store_credential_route(request: web.BaseRequest):
     """Request handler for storing a credential.
 

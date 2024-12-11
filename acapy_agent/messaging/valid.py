@@ -875,8 +875,8 @@ class PresentationType(Validator):
 class CredentialContext(Validator):
     """Credential Context."""
 
-    FIRST_CONTEXT = ["https://www.w3.org/2018/credentials/v1"]
-    V2_CONTEXT = ["https://www.w3.org/ns/credentials/v1"]
+    FIRST_CONTEXT = "https://www.w3.org/2018/credentials/v1"
+    FIRST_CONTEXT_V2 = "https://www.w3.org/ns/credentials/v2"
     EXAMPLE = [FIRST_CONTEXT, "https://www.w3.org/2018/credentials/examples/v1"]
 
     def __init__(self) -> None:
@@ -889,11 +889,11 @@ class CredentialContext(Validator):
 
         if length < 1 or value[0] not in [
             CredentialContext.FIRST_CONTEXT,
-            CredentialContext.V2_CONTEXT
+            CredentialContext.FIRST_CONTEXT_V2
             ]:
             raise ValidationError(
-                f"First context must be {CredentialContext.FIRST_CONTEXT} or \
-                {CredentialContext.V2_CONTEXT}"
+                f"First context must be {CredentialContext.FIRST_CONTEXT} or " \
+                f"{CredentialContext.FIRST_CONTEXT_V2}"
             )
 
         return value

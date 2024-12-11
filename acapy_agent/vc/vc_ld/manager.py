@@ -419,13 +419,14 @@ class VcLdpManager:
             expanded[0],
             "@type",
         )
+        proofs = vc.proof if isinstance(vc.proof, list) else [vc.proof]
         vc_record = VCRecord(
             contexts=vc.context_urls,
             expanded_types=types,
             issuer_id=vc.issuer_id,
             subject_ids=vc.credential_subject_ids,
             schema_ids=[],  # Schemas not supported yet
-            proof_types=[vc.proof.type],
+            proof_types=[proof['type'] for proof in proofs],
             cred_value=vc.serialize(),
             given_id=vc.id,
             record_id=cred_id,
